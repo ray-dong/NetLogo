@@ -119,7 +119,10 @@ class FrontEndTests extends FunSuite {
   }
   test("missing name after let") {
     // here the error is at TokenType.Eof - ST 9/29/14
-    runFailure("let", "LET expected 2 inputs.", 0, 3)
+    runFailure("let", "LET expected 2 inputs, a variable name and any input.", 0, 3)
+  }
+  test("infix let misparse") {
+    runFailure("let x * 5 5", "* expected this input to be a number, but got a variable name instead", 4, 5)
   }
   test("dangling argument errors as expected command") {
     runFailure("let _x 2 show 2 _x", "Expected command.", 16, 18)
