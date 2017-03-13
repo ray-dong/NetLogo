@@ -122,7 +122,13 @@ class FrontEndTests extends FunSuite {
     runFailure("let", "LET expected 2 inputs, a variable name and any input.", 0, 3)
   }
   test("infix let misparse") {
-    runFailure("let x * 5 5", "* expected this input to be a number, but got a variable name instead", 4, 5)
+    runFailure("let x * 5 5", "Missing input on the left.", 4, 5)
+  }
+  test("infix set misparse") {
+    runFailure("let x 0 set x * 5 5", "Missing input on the left.", 14, 15)
+  }
+  test("infix show misparse") {
+    runFailure("show * 5 5", "Missing input on the left.", 5, 6)
   }
   test("dangling argument errors as expected command") {
     runFailure("let _x 2 show 2 _x", "Expected command.", 16, 18)
@@ -224,6 +230,14 @@ class FrontEndTests extends FunSuite {
   }
   test("lambda argument shadows procedure variable") {
     runFailure("__ignore [[bar] -> 2]", "There is already a local variable here called BAR", 11, 14, "to foo [bar] ")
+  }
+  test("DoParseVariadic") {
+    runTest("__ignore list 1 2",
+      "_ignore()[_list()[_const(1)[], _const(2)[]]]")
+  }
+  test("DoParseVariadic2") {
+    runTest("__ignore (list 1 2 3)",
+      "_ignore()[_list()[_const(1)[], _const(2)[], _const(3)[]]]")
   }
   test("DoParseMap") {
     runTest("__ignore map [[x] -> round x] [1.2 1.7 3.2]",
