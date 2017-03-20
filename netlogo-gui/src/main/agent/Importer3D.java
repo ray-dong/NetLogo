@@ -13,7 +13,7 @@ public strictfp class Importer3D
   static final String MIN_PZCOR_HEADER = "MIN-PZCOR";
   static final String MAX_PZCOR_HEADER = "MAX-PZCOR";
 
-  public Importer3D(org.nlogo.agent.Importer.ErrorHandler errorHandler, World world, ImporterUser importerUser,
+  public Importer3D(org.nlogo.agent.Importer.ErrorHandler errorHandler, World3D world, ImporterUser importerUser,
                     org.nlogo.agent.Importer.StringReader stringReader) {
     super(errorHandler, world, importerUser, stringReader);
     TURTLE_BREED = Turtle3D.VAR_BREED3D;
@@ -36,7 +36,7 @@ public strictfp class Importer3D
   @Override
   void importDrawing()
       throws java.io.IOException {
-    Drawing3D drawing = ((World3D) world).drawing;
+    Drawing3D drawing = ((World3D) world).drawing();
 
     while (hasMoreLines(false)) {
       String[] line = nextLine();

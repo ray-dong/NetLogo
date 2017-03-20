@@ -37,7 +37,7 @@ public final strictfp class Patch3D
 
   public static final int LAST_PREDEFINED_VAR_3D = 5;
 
-  Patch3D(World world, int id, int pxcor, int pycor, int pzcor, int numVariables) {
+  Patch3D(World3D world, int id, int pxcor, int pycor, int pzcor, int numVariables) {
     super(world, pxcor, pycor);
     this.id = id;
     this.pzcor = pzcor;
@@ -62,7 +62,7 @@ public final strictfp class Patch3D
           variables[i] = Color.BoxedWhite();
           break;
         default:
-          variables[i] = World.ZERO;
+          variables[i] = World.Zero();
           break;
       }
     }
@@ -187,19 +187,6 @@ public final strictfp class Patch3D
   }
 
   @Override
-  public Turtle sprout(int c, int heading, AgentSet breed) {
-    Turtle child = new Turtle3D((World3D) world, breed,
-        (Double) variables[VAR_PXCOR3D],
-        (Double) variables[VAR_PYCOR3D],
-        (Double) variables[VAR_PZCOR3D]);
-    child.colorDouble
-        (Double.valueOf
-            (5 + 10 * c));
-    child.heading(heading);
-    return child;
-  }
-
-  @Override
   public Object pcolor() {
     if (variables[VAR_PCOLOR3D] == null) {
       variables[VAR_PCOLOR3D] = Double.valueOf(pcolor);
@@ -215,10 +202,10 @@ public final strictfp class Patch3D
     if (this.pcolor != pcolor) {
       this.pcolor = pcolor;
       variables[VAR_PCOLOR3D] = null;
-      world.patchColors[(int) id] = Color.getARGBbyPremodulatedColorNumber(pcolor);
-      world.patchColorsDirty = true;
+      world.patchColors()[(int) id] = Color.getARGBbyPremodulatedColorNumber(pcolor);
+      world.patchColorsDirty(true);
       if (pcolor != 0.0) {
-        world.patchesAllBlack = false;
+        world.patchesAllBlack(false);
       }
     }
   }
@@ -231,19 +218,19 @@ public final strictfp class Patch3D
       if (pcolor != color) {
         pcolor = color;
         variables[VAR_PCOLOR3D] = null;
-        world.patchColors[(int) id] = Color.getARGBbyPremodulatedColorNumber(pcolor);
-        world.patchColorsDirty = true;
+        world.patchColors()[(int) id] = Color.getARGBbyPremodulatedColorNumber(pcolor);
+        world.patchColorsDirty(true);
         if (pcolor != 0.0) {
-          world.patchesAllBlack = false;
+          world.patchesAllBlack(false);
         }
       }
     } else if (pcolor != color) {
       pcolor = color;
       variables[VAR_PCOLOR3D] = boxedColor;
-      world.patchColors[(int) id] = Color.getARGBbyPremodulatedColorNumber(pcolor);
-      world.patchColorsDirty = true;
+      world.patchColors()[(int) id] = Color.getARGBbyPremodulatedColorNumber(pcolor);
+      world.patchColorsDirty(true);
       if (pcolor != 0.0) {
-        world.patchesAllBlack = false;
+        world.patchesAllBlack(false);
       }
     }
   }
@@ -260,10 +247,10 @@ public final strictfp class Patch3D
     if (color != pcolor) {
       pcolor = color;
       variables[VAR_PCOLOR3D] = boxedColor;
-      world.patchColors[(int) id] = Color.getARGBbyPremodulatedColorNumber(color);
-      world.patchColorsDirty = true;
+      world.patchColors()[(int) id] = Color.getARGBbyPremodulatedColorNumber(color);
+      world.patchColorsDirty(true);
       if (color != 0.0) {
-        world.patchesAllBlack = false;
+        world.patchesAllBlack(false);
       }
     }
   }
@@ -283,11 +270,11 @@ public final strictfp class Patch3D
     if (label instanceof String &&
         ((String) label).length() == 0) {
       if (hasLabel()) {
-        world.patchesWithLabels--;
+        world.addPatchLabel();
       }
     } else {
       if (!hasLabel()) {
-        world.patchesWithLabels++;
+        world.removePatchLabel();
       }
     }
     variables[VAR_PLABEL3D] = label;

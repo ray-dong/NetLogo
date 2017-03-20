@@ -13,7 +13,7 @@ import org.nlogo.api.{ AutoConvertable, ComponentSerialization, Version, ModelLo
   WorldDimensions3D, AggregateManagerInterface, FileIO, LogoException, ModelReader, ModelType, NetLogoLegacyDialect,
   NetLogoThreeDDialect, SimpleJobOwner, HubNetInterface, CommandRunnable, ReporterRunnable }, ModelReader.modelSuffix
 import org.nlogo.core.{ AgentKind, CompilerException, Femto, Model, UpdateMode, WorldDimensions }
-import org.nlogo.agent.{ World, World3D }
+import org.nlogo.agent.{ World, World2D, World3D }
 import org.nlogo.nvm.{ LabInterface,
                        Workspace, DefaultCompilerServices, PresentationCompilerInterface }
 import org.nlogo.workspace.{ AbstractWorkspace, AbstractWorkspaceScala, HubNetManagerFactory }
@@ -40,7 +40,7 @@ object HeadlessWorkspace {
    */
   def newInstance(subclass: Class[_ <: HeadlessWorkspace]): HeadlessWorkspace = {
     val pico = new Pico
-    pico.addComponent(if (Version.is3D) classOf[World3D] else classOf[World])
+    pico.addComponent(if (Version.is3D) classOf[World3D] else classOf[World2D])
     pico.add("org.nlogo.compile.Compiler")
     if (Version.is3D)
       pico.addScalaObject("org.nlogo.api.NetLogoThreeDDialect")
@@ -105,7 +105,7 @@ object HeadlessWorkspace {
  * HeadlessWorkspace.newInstance instead.
  */
 class HeadlessWorkspace(
-  _world: World,
+  _world: World with org.nlogo.agent.CompilationManagement,
   val compiler: PresentationCompilerInterface,
   val renderer: RendererInterface,
   val aggregateManager: AggregateManagerInterface,
@@ -193,12 +193,12 @@ with org.nlogo.api.ViewSettings {
     world.createPatches(d)
     import collection.JavaConverters._
     val results = compiler.compileProgram(
-      source, world.newProgram(Seq[String]()),
+      source, _world.newProgram(Seq[String]()),
       getExtensionManager, getCompilationEnvironment)
     procedures = results.proceduresMap
     codeBits.clear()
     init()
-    world.program(results.program)
+    _world.program(results.program)
     world.realloc()
 
     // setup some test plots.

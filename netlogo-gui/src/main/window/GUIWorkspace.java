@@ -137,7 +137,7 @@ public abstract strictfp class GUIWorkspace // can't be both abstract and strict
       try {
         while (true) {
           if (jobManager().anyPrimaryJobs()) {
-            world().comeUpForAir = true;
+            world().comeUpForAir_$eq(true);
           }
           // 100 times a second seems like plenty
           Thread.sleep(10);
@@ -657,7 +657,7 @@ public abstract strictfp class GUIWorkspace // can't be both abstract and strict
       updateManager().pseudoTick();
       updateDisplay(true);
     }
-    world().comeUpForAir = updateManager().shouldComeUpForAirAgain();
+    world().comeUpForAir_$eq(updateManager().shouldComeUpForAirAgain());
     notifyListeners();
   }
 
@@ -689,7 +689,7 @@ public abstract strictfp class GUIWorkspace // can't be both abstract and strict
   private double lastTicksListenersHeard = -1.0;
 
   private void notifyListeners() {
-    double ticks = world().tickCounter.ticks();
+    double ticks = world().tickCounter().ticks();
     if (ticks != lastTicksListenersHeard) {
       lastTicksListenersHeard = ticks;
       listenerManager.tickCounterChanged(ticks);
@@ -900,7 +900,7 @@ public abstract strictfp class GUIWorkspace // can't be both abstract and strict
   public void handle(org.nlogo.window.Events.AddSliderConstraintEvent e) {
     try {
       SliderConstraint con = SliderConstraint.makeSliderConstraint
-          (world().observer(), e.minSpec, e.maxSpec, e.incSpec, e.value, e.slider.name(), this);
+          (world().observer(), e.minSpec, e.maxSpec, e.incSpec, e.value, e.slider.name(), this, this);
       e.slider.removeAllErrors();
       e.slider.setSliderConstraint(con);
       // now we set the constraint in the observer, so that it is enforced.

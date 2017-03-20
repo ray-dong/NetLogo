@@ -4,6 +4,7 @@ package org.nlogo.agent;
 
 import org.nlogo.core.AgentKind;
 import org.nlogo.core.AgentKindJ;
+import org.nlogo.core.Program;
 import org.nlogo.api.AgentException;
 import org.nlogo.api.AgentFollowingPerspective;
 import org.nlogo.api.LogoException;
@@ -26,19 +27,20 @@ public strictfp class Observer
   public AgentKind kind() { return AgentKindJ.Observer(); }
 
   @Override
-  Agent realloc(boolean forRecompile) {
+  Agent realloc(Program oldProgram, Program program) {
+    boolean forRecompile = oldProgram != null;
     Object[] oldvars = variables;
     String[] oldVarNames = varNames;
     Object[] newvars = new Object[world.getVariablesArraySize(this)];
     ValueConstraint[] newcons = new ValueConstraint[world.getVariablesArraySize(this)];
     String[] newVarNames = new String[world.getVariablesArraySize(this)];
     for (int i = 0; newvars.length != i; i++) {
-      newvars[i] = World.ZERO;
+      newvars[i] = World.Zero();
       newcons[i] = null;
       newVarNames[i] = world.program().globals().apply(i);
     }
 
-    if (oldvars != null && world.oldProgram() != null && forRecompile) {
+    if (oldvars != null && oldProgram != null && forRecompile) {
       scala.collection.Seq<String> globals = world.program().globals();
       for (int i = 0; i < oldvars.length && i < oldVarNames.length; i++) {
         int newpos = globals.indexOf(oldVarNames[i]);

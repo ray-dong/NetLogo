@@ -4,14 +4,15 @@ package org.nlogo.agent;
 
 import org.nlogo.core.AgentKind;
 import org.nlogo.core.AgentKindJ;
+import org.nlogo.core.I18N;
+import org.nlogo.core.LogoList;
+import org.nlogo.core.Program;
 import org.nlogo.api.AgentException;
 import org.nlogo.api.AgentVariableNumbers;
 import org.nlogo.api.AgentVariables;
 import org.nlogo.api.Color;
 import org.nlogo.api.Dump;
-import org.nlogo.core.I18N;
 import org.nlogo.api.LogoException;
-import org.nlogo.core.LogoList;
 
 import java.util.ArrayList;
 
@@ -90,7 +91,7 @@ public strictfp class Patch
           variables[i] = Color.BoxedWhite();
           break;
         default:
-          variables[i] = World.ZERO;
+          variables[i] = World.Zero();
           break;
       }
     }
@@ -103,20 +104,20 @@ public strictfp class Patch
   }
 
   @Override
-  Agent realloc(boolean forRecompile) {
+  Agent realloc(Program oldProgram, Program newProgram) {
     Object[] oldvars = variables;
     Object[] newvars = new Object[world.getVariablesArraySize(this)];
     for (int i = 0; newvars.length != i; i++) {
       if (i < NUMBER_PREDEFINED_VARS) {
         newvars[i] = oldvars[i];
       } else {
-        newvars[i] = World.ZERO;
+        newvars[i] = World.Zero();
       }
     }
     // Keep Variables Across Recompile
-    if (forRecompile) {
-      for (int i = NUMBER_PREDEFINED_VARS; i < oldvars.length && i < world.oldProgram().patchesOwn().size(); i++) {
-        String name = world.oldProgram().patchesOwn().apply(i);
+    if (oldProgram != null) {
+      for (int i = NUMBER_PREDEFINED_VARS; i < oldvars.length && i < oldProgram.patchesOwn().size(); i++) {
+        String name = oldProgram.patchesOwn().apply(i);
         int newpos = world.patchesOwnIndexOf(name);
         if (newpos != -1) {
           newvars[newpos] = oldvars[i];
@@ -344,9 +345,7 @@ public strictfp class Patch
   ///
 
   public Turtle sprout(int c, int heading, AgentSet breed) {
-    Turtle child = new Turtle(world, breed,
-        (Double) variables[VAR_PXCOR],
-        (Double) variables[VAR_PYCOR]);
+    Turtle child = world.sprout(this, breed);
     double color = 5 + 10 * c;
     child.colorDoubleUnchecked(Double.valueOf(color));
     child.heading(heading);
@@ -377,10 +376,10 @@ public strictfp class Patch
     if (this.pcolor != pcolor) {
       this.pcolor = pcolor;
       variables[VAR_PCOLOR] = null;
-      world.patchColors[(int) id] = Color.getARGBbyPremodulatedColorNumber(pcolor);
-      world.patchColorsDirty = true;
+      world.patchColors()[(int) id] = Color.getARGBbyPremodulatedColorNumber(pcolor);
+      world.patchColorsDirty(true);
       if (pcolor != 0.0) {
-        world.patchesAllBlack = false;
+        world.patchesAllBlack(false);
       }
     }
   }
@@ -392,19 +391,19 @@ public strictfp class Patch
       if (pcolor != color) {
         pcolor = color;
         variables[VAR_PCOLOR] = null;
-        world.patchColors[(int) id] = Color.getARGBbyPremodulatedColorNumber(pcolor);
-        world.patchColorsDirty = true;
+        world.patchColors()[(int) id] = Color.getARGBbyPremodulatedColorNumber(pcolor);
+        world.patchColorsDirty(true);
         if (pcolor != 0.0) {
-          world.patchesAllBlack = false;
+          world.patchesAllBlack(false);
         }
       }
     } else if (pcolor != color) {
       pcolor = color;
       variables[VAR_PCOLOR] = boxedColor;
-      world.patchColors[(int) id] = Color.getARGBbyPremodulatedColorNumber(pcolor);
-      world.patchColorsDirty = true;
+      world.patchColors()[(int) id] = Color.getARGBbyPremodulatedColorNumber(pcolor);
+      world.patchColorsDirty(true);
       if (pcolor != 0.0) {
-        world.patchesAllBlack = false;
+        world.patchesAllBlack(false);
       }
     }
   }
@@ -414,10 +413,10 @@ public strictfp class Patch
     if (color != pcolor) {
       pcolor = color;
       variables[VAR_PCOLOR] = boxedColor;
-      world.patchColors[(int) id] = Color.getARGBbyPremodulatedColorNumber(color);
-      world.patchColorsDirty = true;
+      world.patchColors()[(int) id] = Color.getARGBbyPremodulatedColorNumber(color);
+      world.patchColorsDirty(true);
       if (color != 0.0) {
-        world.patchesAllBlack = false;
+        world.patchesAllBlack(false);
       }
     }
   }
@@ -434,13 +433,13 @@ public strictfp class Patch
 
     if (!(variables[varIndex] instanceof LogoList) || !rgb.equals(variables[varIndex])) {
       variables[varIndex] = rgb;
-      world.patchColors[(int) id] = Color.getRGBInt(((Double) rgb.get(0)).intValue(),
+      world.patchColors()[(int) id] = Color.getRGBInt(((Double) rgb.get(0)).intValue(),
           ((Double) rgb.get(1)).intValue(),
           ((Double) rgb.get(2)).intValue());
-      world.patchColorsDirty = true;
-      world.patchesAllBlack = false;
+      world.patchColorsDirty(true);
+      world.patchesAllBlack(false);
       if(rgb.size() > 3) {
-        world.mayHavePartiallyTransparentObjects = true;
+        world.mayHavePartiallyTransparentObjects(true);
       }
     }
   }
@@ -476,11 +475,11 @@ public strictfp class Patch
     if (label instanceof String &&
         ((String) label).length() == 0) {
       if (hasLabel()) {
-        world.patchesWithLabels--;
+        world.removePatchLabel();
       }
     } else {
       if (!hasLabel()) {
-        world.patchesWithLabels++;
+        world.addPatchLabel();
       }
     }
     variables[VAR_PLABEL] = label;

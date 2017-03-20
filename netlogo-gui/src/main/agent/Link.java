@@ -5,14 +5,16 @@ package org.nlogo.agent;
 import org.nlogo.core.AgentKindJ;
 import org.nlogo.core.AgentKind;
 import org.nlogo.core.AgentKindJ;
+import org.nlogo.core.Breed;
+import org.nlogo.core.I18N;
+import org.nlogo.core.LogoList;
+import org.nlogo.core.Program;
 import org.nlogo.api.AgentException;
 import org.nlogo.api.AgentVariableNumbers;
 import org.nlogo.api.AgentVariables;
 import org.nlogo.api.Color;
 import org.nlogo.api.Dump;
-import org.nlogo.core.I18N;
 import org.nlogo.api.LogoException;
-import org.nlogo.core.LogoList;
 
 import java.util.Iterator;
 
@@ -74,7 +76,7 @@ public strictfp class Link
     this.id = world.newLinkId();
 
     for (int i = 2; i < variables.length; i++) {
-      variables[i] = World.ZERO;
+      variables[i] = World.Zero();
     }
 
     colorDoubleUnchecked(DEFAULT_COLOR);
@@ -89,8 +91,8 @@ public strictfp class Link
     variables[VAR_LABEL] = "";
     variables[VAR_LABELCOLOR] = Color.BoxedWhite();
     variables[VAR_HIDDEN] = Boolean.FALSE;
-    variables[VAR_THICKNESS] = World.ZERO;
-    variables[VAR_SHAPE] = world.linkBreedShapes.breedShape(breed);
+    variables[VAR_THICKNESS] = World.Zero();
+    variables[VAR_SHAPE] = world.linkBreedShapes().breedShape(breed);
     variables[VAR_TIEMODE] = MODE_NONE;
     this.end1 = end1;
     this.end2 = end2;
@@ -105,7 +107,7 @@ public strictfp class Link
     }
 
     for (int i = LAST_PREDEFINED_VAR + 1; i < variables.length; i++) {
-      variables[i] = World.ZERO;
+      variables[i] = World.Zero();
     }
 
     colorDoubleUnchecked(DEFAULT_COLOR);
@@ -120,18 +122,19 @@ public strictfp class Link
     if (breed != world.links()) {
       ((TreeAgentSet) breed).remove(agentKey());
     }
-    world.linkManager.cleanupLink(this);
+    world.linkManager().cleanupLink(this);
     id = -1;
   }
 
   ///
 
   @Override
-  Agent realloc(boolean compiling) {
-    return realloc(compiling, null);
+  Agent realloc(Program oldProgram, Program program) {
+    return realloc(oldProgram, program, null);
   }
 
-  Agent realloc(boolean compiling, AgentSet oldBreed) {
+  Agent realloc(Program oldProgram, Program program, AgentSet oldBreed) {
+    boolean compiling = oldProgram != null;
     // first check if we recompiled and our breed disappeared!
     if (compiling && getBreed() != world.links() &&
         world.getLinkBreed(getBreed().printName()) == null) {
@@ -153,9 +156,9 @@ public strictfp class Link
     if (compiling) {
       for (int i = NUMBER_PREDEFINED_VARS; i < linksOwnSize; i++) {
         String name = world.linksOwnNameAt(i);
-        int oldpos = world.oldLinksOwnIndexOf(name);
+        int oldpos = oldProgram.linksOwn().indexOf(name);
         if (oldpos == -1) {
-          variables[i] = World.ZERO;
+          variables[i] = World.Zero();
         } else {
           variables[i] = oldvars[oldpos];
           oldvars[oldpos] = null;
@@ -166,16 +169,32 @@ public strictfp class Link
     // stage 3: handle the BREED-own variables
     for (int i = linksOwnSize; i < variables.length; i++) {
       String name = world.linkBreedsOwnNameAt(getBreed(), i);
-      int oldpos = compiling ? world.oldLinkBreedsOwnIndexOf(getBreed(), name)
+      int oldpos = compiling ? oldBreedsOwnIndexOf(oldProgram, getBreed(), name)
           : world.linkBreedsOwnIndexOf(oldBreed, name);
       if (oldpos == -1) {
-        variables[i] = World.ZERO;
+        variables[i] = World.Zero();
       } else {
         variables[i] = oldvars[oldpos];
         oldvars[oldpos] = null;
       }
     }
     return null;
+  }
+
+
+  /**
+   * used by Link.realloc()
+   */
+  private int oldBreedsOwnIndexOf(Program oldProgram, AgentSet breed, String name) {
+    scala.Option<Breed> found = oldProgram.linkBreeds().get(breed.printName());
+    if (found.isEmpty()) {
+      return -1;
+    }
+    int result = found.get().owns().indexOf(name);
+    if (result == -1) {
+      return -1;
+    }
+    return oldProgram.linksOwn().size() + result;
   }
 
   @Override
@@ -296,7 +315,7 @@ public strictfp class Link
                   + " with endpoints "
                   + end1.toString() + " and " + end2.toString());
             }
-            if (!world.linkManager.checkBreededCompatibility(breed == world.links())) {
+            if (!world.linkManager().checkBreededCompatibility(breed == world.links())) {
               throw new AgentException
                   (I18N.errorsJ().get("org.nlogo.agent.Link.cantHaveBreededAndUnbreededLinks"));
             }
@@ -441,25 +460,25 @@ public strictfp class Link
   }
 
   public double x2() {
-    return world.topology.shortestPathX(end1.xcor(), end2.xcor());
+    return world.topology().shortestPathX(end1.xcor(), end2.xcor());
   }
 
   public double y2() {
-    return world.topology.shortestPathY(end1.ycor(), end2.ycor());
+    return world.topology().shortestPathY(end1.ycor(), end2.ycor());
   }
 
   public double midpointX() {
     double x1 = x1();
     double x2 = x2();
 
-    return Topology.wrap((x1 + x2) / 2, world._minPxcor - 0.5, world._maxPxcor + 0.5);
+    return Topology.wrap((x1 + x2) / 2, world.minPxcor() - 0.5, world.maxPxcor() + 0.5);
   }
 
   public double midpointY() {
     double y1 = y1();
     double y2 = y2();
 
-    return Topology.wrap((y1 + y2) / 2, world._minPycor - 0.5, world._maxPycor + 0.5);
+    return Topology.wrap((y1 + y2) / 2, world.minPycor() - 0.5, world.maxPycor() + 0.5);
   }
 
   public double heading() {
@@ -507,7 +526,7 @@ public strictfp class Link
   }
 
   public void mode(String mode) {
-    world.tieManager.setTieMode(this, mode);
+    world.tieManager().setTieMode(this, mode);
     variables[VAR_TIEMODE] = mode;
   }
 
@@ -541,7 +560,7 @@ public strictfp class Link
     validRGBList(rgb, true);
     variables[VAR_COLOR] = rgb;
     if(rgb.size() > 3) {
-      world.mayHavePartiallyTransparentObjects = true;
+      world.mayHavePartiallyTransparentObjects(true);
     }
   }
 
@@ -625,7 +644,7 @@ public strictfp class Link
   public void setBreed(AgentSet breed) {
     AgentSet oldBreed = null;
     if (variables[VAR_BREED] instanceof AgentSet) {
-      world.linkManager.removeLink(this);
+      world.linkManager().removeLink(this);
       oldBreed = (AgentSet) variables[VAR_BREED];
       if (breed == oldBreed) {
         return;
@@ -639,10 +658,10 @@ public strictfp class Link
     }
     variables[VAR_BREED] = breed;
     if (oldBreed != null) {
-      world.linkManager.addLink(this);
+      world.linkManager().addLink(this);
     }
-    shape(world.linkBreedShapes.breedShape(breed));
-    realloc(false, oldBreed);
+    shape(world.linkBreedShapes().breedShape(breed));
+    realloc(null, world.program(), oldBreed);
   }
 
   // returns the index of the breed of this link, 0 means a generic link;

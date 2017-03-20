@@ -25,9 +25,11 @@ object SliderConstraint {
   }
 
   @throws(classOf[ConstraintExceptionHolder])
-  def makeSliderConstraint(agent: Agent, minCode: String, maxCode: String, incCode: String, defValue: Double,
-                           ownerName: String, thunkFactory: LogoThunkFactory): SliderConstraint = {
-    val compiler: CompilerServices = agent.world.compiler
+  def makeSliderConstraint(agent: Agent, minCode: String, maxCode: String, incCode: String,
+    defValue: Double, ownerName: String,
+    compiler: CompilerServices,
+    thunkFactory: LogoThunkFactory): SliderConstraint = {
+
     abstract class ConstraintCompiler[T] {
       def compile(code: String, spec: Spec): Either[SliderConstraintException, T]
       def makeConstraint(minT: T, maxT: T, incT: T): SliderConstraint
@@ -68,7 +70,7 @@ abstract class SliderConstraint extends ValueConstraint {
   def minimum: Try[Double]
   def increment: Try[Double]
   def maximum: Try[Double]
-  var defaultValue = World.ZERO
+  var defaultValue = World.Zero
   def assertConstraint(o: Object): Unit = {
     if (!(o.isInstanceOf[Double])) { throw new ValueConstraint.Violation("Value must be a number.") }
   }

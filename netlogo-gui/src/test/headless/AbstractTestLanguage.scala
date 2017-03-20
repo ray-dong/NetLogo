@@ -43,13 +43,13 @@ trait AbstractTestLanguage extends Assertions {
       import collection.JavaConverters._
       compiler.compileProgram(
         HeadlessWorkspace.TestDeclarations + source,
-        workspace.world.newProgram(Seq[String]()),
+        workspace.world.asInstanceOf[org.nlogo.agent.CompilationManagement].newProgram(Seq[String]()),
         workspace.getExtensionManager(), workspace.getCompilationEnvironment)
     }
     workspace.setProcedures(results.proceduresMap)
-    workspace.world.program(results.program)
+    workspace.world.asInstanceOf[org.nlogo.agent.CompilationManagement].program(results.program)
     workspace.init()
-    workspace.world.realloc()
+    workspace.world.asInstanceOf[org.nlogo.agent.CompilationManagement].realloc()
   }
 
   def openModel(model: Model): Unit = {
@@ -61,7 +61,7 @@ trait AbstractTestLanguage extends Assertions {
     val actualResult = workspace.evaluateReporter(owner,
       if (mode == NormalMode) reporter
       else ("runresult \"" + org.nlogo.api.StringUtils.escapeString(reporter) + "\""),
-      workspace.world.observer())
+      workspace.world.observer)
     if(workspace.lastLogoException != null)
       throw workspace.lastLogoException
     // To be as safe as we can, let's do two separate checks here...  we'll compare the results both
