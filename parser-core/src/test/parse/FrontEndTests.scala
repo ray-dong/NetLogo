@@ -68,6 +68,7 @@ class FrontEndTests extends FunSuite {
   }
   def doFailure(input: String, message: String, start: Int, end: Int, preamble: String = PREAMBLE) {
     val e = intercept[CompilerException] { compile(input, preamble = preamble) }
+    e.printStackTrace()
     assertResult(message)(e.getMessage)
     val programText = preamble + input + POSTAMBLE
     def programTextWithContext(s: Int, e: Int) = {
@@ -132,6 +133,15 @@ class FrontEndTests extends FunSuite {
   }
   test("dangling argument errors as expected command") {
     runFailure("let _x 2 show 2 _x", "Expected command.", 16, 18)
+  }
+  test("run with no arguments") {
+    runFailure("run", "RUN expected at least 1 input, a string or anonymous command and any input.", 0, 3)
+  }
+  test("foreach with no list") {
+    runFailure("foreach [ x -> show x ]", "FOREACH expected at least 2 inputs, a list and an anonymous command.", 0, 7)
+  }
+  test("map with no arguments") {
+    runFailure("show map 1 + 2", "MAP expected at least 2 inputs, an anonymous reporter and a list.", 5, 10)
   }
   test("unknown reporter failure") {
     runFailure("crt foo", "Nothing named FOO has been defined.", 4, 7)
