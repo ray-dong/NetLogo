@@ -21,7 +21,7 @@ import org.nlogo.core.{
 import org.nlogo.nvm.{ Binding, Command, Context, ExclusiveJob, Procedure, Reporter }
 import org.nlogo.prim.{ _call, _callreport, _carefully, _constdouble, _conststring, _crtfast,
   _done, _equal, _lessthan, _let, _letvariable, _repeat, _repeatlocal,
-  _return, _setletvariable }
+  _return, _returnreport, _setletvariable }
 
 import scala.collection.immutable.ListMap
 
@@ -88,8 +88,12 @@ class NvmTests extends FunSuite {
 
     // these may need to be split up at some point...
     def execute(proc: Procedure, stmtBuilder: StatementsBuilder): Unit = {
-      // we add done because that's done for buttons and command center procedures "top-level procedures"
-      assembleProcedure(proc, stmtBuilder.done)
+      if (proc.isReporter) {
+        assembleProcedure(proc, stmtBuilder.returnreport)
+      } else{
+        // in the compiler, Assembler adds _done for "top-level procedures" (CC and buttons)
+        assembleProcedure(proc, stmtBuilder.done)
+      }
       world.mainRNG.setSeed(0)
       exclusiveJob(proc).run()
       probes.foreach(_.verify())
@@ -279,7 +283,7 @@ class NvmTests extends FunSuite {
     }
     val calleeBody = new StatementsBuilder() {
       let(b, two)
-      statementEtc("_report", "etc._report", Seq(two))
+      report(two)
     }
     assembleProcedure(callee, calleeBody)
     execute(caller, callerBody)
@@ -345,6 +349,13 @@ class NvmTests extends FunSuite {
     execute(proc, procedureBody)
   } }
 
+  test("reporter procedures can be called from the top level") { new Helper {
+    val proc = reporterProcedure("report-one")
+    val procBody = new StatementsBuilder() {
+      report(constInt(1))
+    }
+    execute(proc, procBody)
+  } }
 
   test("`carefully` properly restores context after error inside procedure call") { new Helper {
     val containsA = checkBinding(a, Double.box(1))
@@ -385,10 +396,16 @@ class NvmTests extends FunSuite {
         Seq(block.buildBlock, errorBlock.buildBlock))
     }
 
+    def report(value: Expression): StatementsBuilder = {
+      statementEtc("_report", "etc._report", Seq(value))
+    }
+
     def probe(cmd: Command): StatementsBuilder =
       statement(_probesyntax(), cmd)
 
     def done = statement(_coredone(),    new _done())
+
+    def returnreport = statement(_coredone(), new _returnreport())
 
     def end  = statement(_corereturn(),  new _return())
   }
