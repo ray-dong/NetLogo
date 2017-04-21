@@ -219,6 +219,7 @@ trait AgentManagement
       if (turtle.getBreed != turtles) {
         val newBreed = other.breeds.get(turtle.getBreed.printName)
         newTurtle.setBreed(newBreed)
+        newTurtle.shape(turtle.shape)
       }
       val newPatchHere = newWorld.getPatch(turtle.getPatchHere.id().toInt)
       newPatchHere.addTurtle(newTurtle)
