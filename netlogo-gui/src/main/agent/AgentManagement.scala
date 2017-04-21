@@ -195,11 +195,13 @@ trait AgentManagement
     breeds.asScala.foreach {
       case (name, agentset) if turtleBreedShapes.breedHasShape(agentset) =>
         newWorld.turtleBreedShapes.setBreedShape(agentset.printName, turtleBreedShapes.breedShape(agentset))
+      case _ =>
     }
     newWorld.linkShapes.addAll(linkShapes.shapeList.shapes)
     linkBreeds.asScala.foreach {
       case (name, agentset) if linkBreedShapes.breedHasShape(agentset) =>
         newWorld.linkBreedShapes.setBreedShape(agentset.printName, linkBreedShapes.breedShape(agentset))
+      case _ =>
     }
 
     val turtleVariableCount = program.dialect.agentVariables.implicitTurtleVariableTypeMap.size
