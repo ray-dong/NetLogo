@@ -12,7 +12,7 @@ import org.nlogo.core.TestUtils.cleanJsNumbers
 
 class FrontEndTests extends FunSuite {
 
-  val PREAMBLE = "to __test "
+  val PREAMBLE = "to __test [] "
   val POSTAMBLE = "\nend"
 
   /// helpers
@@ -113,9 +113,19 @@ class FrontEndTests extends FunSuite {
     runFailure("ask turtles [ fd 1 ] ] ]", "Expected command.", 21, 22)
   }
   test("missingCloseBracket") {
-    // You could argue that it ought to point to the second bracket and not the first, but this is
-    // fine. - ST 1/22/09
-    runFailure("crt 10 [ [", "No closing bracket for this open bracket.", 7, 8)
+    runFailure("crt 10 [ [", "No closing bracket for this open bracket.", 9, 10)
+  }
+  test("open paren errors with expected command") {
+    runFailure("(", "Expected command.", 0, 1)
+  }
+  test("close paren errors with expected command") {
+    runFailure(")", "Expected command.", 0, 1)
+  }
+  test("open bracket errors with expected command") {
+    runFailure("[", "Expected command.", 0, 1)
+  }
+  test("close bracket errors with expected command") {
+    runFailure("]", "Expected command.", 0, 1)
   }
   test("missing name after let") {
     // here the error is at TokenType.Eof - ST 9/29/14
@@ -136,7 +146,10 @@ class FrontEndTests extends FunSuite {
     runFailure("__ignore __block [ abc", "No closing bracket for this open bracket.", 17, 18)
   }
   test("shows errors when verbatim code blocks don't match 2") {
-    runFailure("__ignore __block [ (abc ]", "Expected close paren here", 24, 25)
+    runFailure("__ignore __block [ (abc ]", "Expected close parenthesis here", 24, 25)
+  }
+  test("shows errors when verbatim code blocks don't match 3") {
+    runFailure("__ignore __block [ ([abc) ]", "Expected close bracket here", 24, 25)
   }
   test("dangling argument errors as expected command") {
     runFailure("let _x 2 show 2 _x", "Expected command.", 16, 18)
@@ -155,10 +168,13 @@ class FrontEndTests extends FunSuite {
   }
   // TODO: These are not great error messages - should mention unclosed parentheses
   test("list missing close paren") {
-    runFailure("show (list 1 2", "LIST expected 2 inputs on the right or any number of inputs when surrounded by parentheses.", 6, 10)
+    runFailure("show (list 1 2", "No closing parenthesis for this open parenthesis.", 5, 6)
+  }
+  test("expects parenthesized expressions to contain only one statement") {
+    runFailure("(show list 1 2 show 3)", "Expected a closing parenthesis here.", 15, 19)
   }
   test("foreach missing close paren") {
-    runFailure("(foreach [1 2] [3 4] [ [x y] -> show x ]", "FOREACH expected at least 2 inputs, a list and an anonymous command.", 1, 8)
+    runFailure("(foreach [1 2] [3 4] [ [x y] -> show x ]", "No closing parenthesis for this open parenthesis.", 0, 1)
   }
   test("parseSymbolUnknownName") {
     runTest("report __symbol foo", "_report()[_symbolstring()[_symbol()[]]]", preamble = "to-report sym ")
@@ -217,7 +233,7 @@ class FrontEndTests extends FunSuite {
     runFailure("__ignore [->", "No closing bracket for this open bracket.", 9, 10)
   }
   test("invalidLambda2") {
-    runFailure("__ignore [[->", "No closing bracket for this open bracket.", 9, 10)
+    runFailure("__ignore [[->", "No closing bracket for this open bracket.", 10, 11)
   }
   test("invalidLambda3") {
     runFailure("__ignore [[]->", "No closing bracket for this open bracket.", 9, 10)
