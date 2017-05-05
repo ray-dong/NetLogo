@@ -316,7 +316,7 @@ class FrontEndTests extends FunSuite {
     runTest("carefully [ error \"foo\" ] [ __ignore error-message ]",
       """_carefully()[[_error()[_const(foo)[]]], [_ignore()[_errormessage()[]]]]""")
   }
-  test("ParseExpressionWithInfix") {
+  test("ParseExpressionWithInfix1") {
     runTest("__ignore 5 + 2",
       "_ignore()[_plus()[_const(5.0)[], _const(2.0)[]]]")
   }
