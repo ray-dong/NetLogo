@@ -546,10 +546,6 @@ object ExpressionParser {
     }
   }
 
-  // Here's a weird solution to the infix-parsing problem:
-  // * When we encounter a missing prefix failure
-  // * Try to resolve the types of the argument, if you can, ...
-
   private def parseCompletely(
     groups: Seq[SyntaxGroup],
     failureMessage: String,
@@ -611,6 +607,7 @@ object ExpressionParser {
       groups.head match {
         case ParenGroup(inner, open, close) =>
           parseCompletely(inner, ExpectedCloseParen, parseContext.withVariadic(true), expressionParseContext)
+            .setRest(groups.tail)
         case group: BracketGroup =>
           SuccessfulParse((DelayedBlock(group, scope), groups.tail))
         case Atom(token) =>
