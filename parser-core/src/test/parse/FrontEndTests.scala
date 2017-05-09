@@ -444,10 +444,10 @@ class FrontEndTests extends FunSuite {
 
   // issue #417 (source positions for literal lists)
   test("literal list") {
-    testStartAndEnd("print [1 2 3]",
-      "Statements 'print [1 2 3]' " +
-      "Statement 'print [1 2 3]' " +
-      "ReporterApp '[1 2 3]' ")
+    testStartAndEnd("print [1 2 3]", Seq(
+      "Statements 'print [1 2 3]'",
+      "Statement 'print [1 2 3]'",
+      "ReporterApp '[1 2 3]'").mkString("", "\n ", "\n "))
   }
 
   /// duplicate name tests
