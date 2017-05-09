@@ -140,7 +140,7 @@ object ExpressionParser {
     def syntax: core.Syntax
     def args: Seq[core.Expression]
     def precedence = syntax.precedence
-    override def needsArguments = syntax.totalDefault > args.length
+    override def needsArguments = syntax.totalCount > args.length
     def neededArgument: Int = if (needsArguments) syntax.allArgs(args.length) else 0
     def withArgument(arg: core.Expression): ArgumentPartial
   }
@@ -271,17 +271,14 @@ object ExpressionParser {
     val stackPrimacy = p.primacy
     (p, g) match {
       case (_, pg: ParenGroup)   => true
-      case (PartialCommandAndArgs(cmd: core.Command, _, args), _) =>
-        cmd.syntax.totalDefault > args.length
-      case (PartialReporterAndArgs(rep: core.Reporter, _, args), _) =>
-        rep.syntax.totalDefault > args.length
+      case (ap: ArgumentPartial, _) =>
+        ap.needsArguments
       case (db: PartialDelayedBlock, bg: BracketGroup) => false
       case (_, bg: BracketGroup) =>
         stackPrimacy > 3
       case (_, Atom(token@Token(_, TokenType.Command, cmd: core.Command))) =>
         stackPrimacy > 6
       case (p, Atom(token@Token(_, TokenType.Reporter, rep: core.Reporter))) if rep.syntax.isInfix =>
-        println("precedence: " + c.precedence + " vs " + rep.syntax.precedence)
         (c.precedence < rep.syntax.precedence) && (p.needsArguments || stackPrimacy > 1)
       case (p, Atom(token@Token(_, TokenType.Reporter, rep: core.Reporter))) =>
         p.needsArguments || stackPrimacy > 3
@@ -367,10 +364,16 @@ object ExpressionParser {
           }
         case other => SuccessfulParse((other, scope))
       }
+    val allArgs =
+      if (cmd.syntax.takesOptionalCommandBlock && args.length == cmd.syntax.right.length - 1) {
+        args :+ syntheticCommandBlock(args, cmd.token.sourceLocation)
+      } else
+        args
+
     parseLetAndScope match {
       case f: FailedParse => (PartialError(f), scope)
       case SuccessfulParse((newCmd, newScope)) =>
-        resolveTypes(args, ArgumentParseContext(newCmd, tok.sourceLocation), scope) match {
+        resolveTypes(allArgs, ArgumentParseContext(newCmd, tok.sourceLocation), scope) match {
           case f: FailedParse => (PartialError(f), scope)
           case SuccessfulParse(typedArgs) =>
             val loc = SourceLocation(tok.start, args.lastOption.map(_.sourceLocation.end).getOrElse(tok.end), tok.filename)
@@ -416,7 +419,7 @@ object ExpressionParser {
       case f: FailedParse => PartialError(f)
       case SuccessfulParse(repApp) =>
         val loc = SourceLocation(tok.start, args.lastOption.map(_.sourceLocation.end).getOrElse(tok.end), tok.filename)
-        PartialReporterApp(repApp)
+        PartialReporterApp(repApp.copy(location = loc))
     }
   }
 
@@ -456,10 +459,6 @@ object ExpressionParser {
       processCommandBlock(block, scope)
     else
       PartialError(fail("only reporter arrow lambdas are handled", block))
-    /*
-    else if (block.isArrowLambda && block.isCommand)
-      buildCommandLambda(block.asInstanceOf[ArrowLambdaBlock].argNames)
-    */
   }
 
   def processReporterBlock(block: DelayedBlock, scope: SymbolTable): Partial = {
@@ -485,6 +484,7 @@ object ExpressionParser {
           case (expr: core.ReporterApp) =>
             val lambda = new core.prim._reporterlambda(block.argNames)
             lambda.token = block.openBracket
+            val ra = new core.ReporterApp(lambda, Seq(expr), block.group.location)
             PartialReporterApp(new core.ReporterApp(lambda, Seq(expr), block.group.location))
           case (other: core.Expression) =>
             PartialError(fail(ExpectedCommand, other))
@@ -497,14 +497,21 @@ object ExpressionParser {
   }
 
   def processCommandBlock(block: DelayedBlock, scope: SymbolTable): Partial = {
-    runRec(Nil, block.bodyGroups, ParsingContext(Syntax.CommandPrecedence, block.internalScope), _.isInstanceOf[PartialStatements]).flatMap {
-      case (PartialStatements(stmts), remainingGroups) if remainingGroups.isEmpty =>
-        SuccessfulParse(PartialCommandBlock(commandBlockWithStatements(block.group.location, stmts.stmts)))
-      case (_, remainingGroups) => fail(ExpectedCommand, remainingGroups.head.start)
-    } match {
-      case f: FailedParse => PartialError(f)
-      case SuccessfulParse(partial) => partial
-    }
+    if (block.bodyGroups.isEmpty) {
+      val file = block.group.start.filename
+      PartialCommandBlock(
+      new core.CommandBlock(
+        new core.Statements(file),
+        SourceLocation(block.group.start.start, block.group.end.end, file), true))
+    } else
+      runRec(Nil, block.bodyGroups, ParsingContext(Syntax.CommandPrecedence, block.internalScope), _.isInstanceOf[PartialStatements]).flatMap {
+        case (PartialStatements(stmts), remainingGroups) if remainingGroups.isEmpty =>
+          SuccessfulParse(PartialCommandBlock(commandBlockWithStatements(block.group.location, stmts.stmts)))
+        case (_, remainingGroups) => fail(ExpectedCommand, remainingGroups.head.start)
+      } match {
+        case f: FailedParse => PartialError(f)
+        case SuccessfulParse(partial) => partial
+      }
   }
 
   def processCommandLambda(block: ArrowLambdaBlock, scope: SymbolTable): Partial = {

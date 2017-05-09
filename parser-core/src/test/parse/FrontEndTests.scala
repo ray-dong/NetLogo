@@ -53,7 +53,7 @@ class FrontEndTests extends FunSuite {
       val start = node.start - PREAMBLE.length
       val end = node.end - PREAMBLE.length
       val text =
-        try "'" + source.substring(start, end) + "'"
+        try "'" + source.substring(start, end) + "'\n"
         catch { case _: StringIndexOutOfBoundsException =>
           "out of bounds: " + ((start, end)) }
       buf.append(node.getClass.getSimpleName + " " + text + " ")
@@ -373,73 +373,73 @@ class FrontEndTests extends FunSuite {
 
   /// tests using testStartAndEnd
   test("StartAndEndPositions0") {
-    testStartAndEnd("ca",
-      "Statements 'ca' " +
-      "Statement 'ca' ")
+    testStartAndEnd("ca", Seq(
+      "Statements 'ca'",
+      "Statement 'ca'").mkString("", "\n ", "\n "))
   }
   test("StartAndEndPositions1") {
-    testStartAndEnd("__ignore 5",
-      "Statements '__ignore 5' " +
-      "Statement '__ignore 5' " +
-      "ReporterApp '5' ")
+    testStartAndEnd("__ignore 5", Seq(
+      "Statements '__ignore 5'",
+      "Statement '__ignore 5'",
+      "ReporterApp '5'").mkString("", "\n ", "\n "))
   }
   test("StartAndEndPositions2") {
-    testStartAndEnd("__ignore n-values 5 [[] -> world-width]",
-      "Statements '__ignore n-values 5 [[] -> world-width]' " +
-      "Statement '__ignore n-values 5 [[] -> world-width]' " +
-      "ReporterApp 'n-values 5 [[] -> world-width]' " +
-      "ReporterApp '5' " +
-      "ReporterApp '[[] -> world-width]' " +
-      "ReporterApp 'world-width' ")
+    testStartAndEnd("__ignore n-values 5 [[] -> world-width]", Seq(
+      "Statements '__ignore n-values 5 [[] -> world-width]'",
+      "Statement '__ignore n-values 5 [[] -> world-width]'",
+      "ReporterApp 'n-values 5 [[] -> world-width]'",
+      "ReporterApp '5'",
+      "ReporterApp '[[] -> world-width]'",
+      "ReporterApp 'world-width'").mkString("", "\n ", "\n "))
   }
   test("StartAndEndPositions8") {
-    testStartAndEnd("crt 1",
-      "Statements 'crt 1' " +
-      "Statement 'crt 1' " +
-      "ReporterApp '1' " +
-      "CommandBlock '' " +
-      "Statements '' ")
+    testStartAndEnd("crt 1", Seq(
+      "Statements 'crt 1'",
+      "Statement 'crt 1'",
+      "ReporterApp '1'",
+      "CommandBlock ''",
+      "Statements ''").mkString("", "\n ", " "))
   }
   test("StartAndEndPositions9") {
-    testStartAndEnd("crt 1 [ ]",
-      "Statements 'crt 1 [ ]' " +
-      "Statement 'crt 1 [ ]' " +
-      "ReporterApp '1' " +
-      "CommandBlock '[ ]' " +
-      "Statements '' ")
+    testStartAndEnd("crt 1 [ ]", Seq(
+      "Statements 'crt 1 [ ]'",
+      "Statement 'crt 1 [ ]'",
+      "ReporterApp '1'",
+      "CommandBlock '[ ]'",
+      "Statements ''").mkString("", "\n ", " "))
   }
 
   test("StartAndEndPositions10") {
-    testStartAndEnd("ask turtles with [color = red ] [ fd 1 ]",
-      "Statements 'ask turtles with [color = red ] [ fd 1 ]' " +
-      "Statement 'ask turtles with [color = red ] [ fd 1 ]' " +
-      "ReporterApp 'turtles with [color = red ]' " +
-      "ReporterApp 'turtles' " +
-      "ReporterBlock '[color = red ]' " +
-      "ReporterApp 'color = red' " +
-      "ReporterApp 'color' " +
-      "ReporterApp 'red' " +
-      "CommandBlock '[ fd 1 ]' " +
-      "Statements 'fd 1' " +
-      "Statement 'fd 1' " +
-      "ReporterApp '1' ")
+    testStartAndEnd("ask turtles with [color = red ] [ fd 1 ]", Seq(
+      "Statements 'ask turtles with [color = red ] [ fd 1 ]'",
+      "Statement 'ask turtles with [color = red ] [ fd 1 ]'",
+      "ReporterApp 'turtles with [color = red ]'",
+      "ReporterApp 'turtles'",
+      "ReporterBlock '[color = red ]'",
+      "ReporterApp 'color = red'",
+      "ReporterApp 'color'",
+      "ReporterApp 'red'",
+      "CommandBlock '[ fd 1 ]'",
+      "Statements 'fd 1'",
+      "Statement 'fd 1'",
+      "ReporterApp '1'").mkString("", "\n ", "\n "))
   }
 
   test("While") {
-    testStartAndEnd("while [count turtles < 10] [ crt 1 ]",
-      "Statements 'while [count turtles < 10] [ crt 1 ]' " +
-      "Statement 'while [count turtles < 10] [ crt 1 ]' " +
-      "ReporterBlock '[count turtles < 10]' " +
-      "ReporterApp 'count turtles < 10' " +
-      "ReporterApp 'count turtles' " +
-      "ReporterApp 'turtles' " +
-      "ReporterApp '10' " +
-      "CommandBlock '[ crt 1 ]' " +
-      "Statements 'crt 1' " +
-      "Statement 'crt 1' " +
-      "ReporterApp '1' " +
-      "CommandBlock '' " +
-      "Statements '' ")
+    testStartAndEnd("while [count turtles < 10] [ crt 1 ]", Seq(
+      "Statements 'while [count turtles < 10] [ crt 1 ]'",
+      "Statement 'while [count turtles < 10] [ crt 1 ]'",
+      "ReporterBlock '[count turtles < 10]'",
+      "ReporterApp 'count turtles < 10'",
+      "ReporterApp 'count turtles'",
+      "ReporterApp 'turtles'",
+      "ReporterApp '10'",
+      "CommandBlock '[ crt 1 ]'",
+      "Statements 'crt 1'",
+      "Statement 'crt 1'",
+      "ReporterApp '1'",
+      "CommandBlock ''",
+      "Statements ''").mkString("", "\n ", "\n "))
   }
 
   // issue #417 (source positions for literal lists)
