@@ -103,7 +103,7 @@ class FrontEndTests extends FunSuite {
   test("parseSymbolKnownName2") {
     runTest("report __symbol turtle", "_report()[_symbolstring()[_symbol()[]]]", preamble = "to-report sym ")
   }
-  test("lambda parse") {
+  test("basic lambda parse") {
     runTest("__ignore [[x] -> x + x]",
       "_ignore()[_reporterlambda(X)[_plus()[_lambdavariable(X)[], _lambdavariable(X)[]]]]")
   }
