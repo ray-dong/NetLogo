@@ -43,7 +43,7 @@ case class _breed(breedName: String) extends Reporter {
     Syntax.reporterSyntax(
       ret = Syntax.TurtlesetType)
 }
-case class _breedvariable(name: String) extends Reporter {
+case class _breedvariable(name: String) extends Reporter with Variable {
   override def syntax =
     Syntax.reporterSyntax(
       ret = Syntax.WildcardType | Syntax.ReferenceType,
@@ -216,7 +216,7 @@ case class _lambdaargs() extends Reporter {
       ret = Syntax.VoidType,
       precedence = Syntax.NormalPrecedence - 4)
 }
-case class _lambdavariable(name: String, synthetic: Boolean = false) extends Reporter {
+case class _lambdavariable(name: String, synthetic: Boolean = false) extends Reporter with Variable {
   def this(name: String) = this(name, false)
   override def syntax =
     Syntax.reporterSyntax(ret = Syntax.WildcardType)
@@ -247,18 +247,18 @@ object _letname {
   def apply() = new _letname()
 }
 class _letname() extends _symbol()
-case class _letvariable(let: Let) extends Reporter {
+case class _letvariable(let: Let) extends Reporter with Variable {
   override def syntax =
     Syntax.reporterSyntax(
       ret = Syntax.WildcardType)
 }
-case class _linkbreedvariable(name: String) extends Reporter {
+case class _linkbreedvariable(name: String) extends Reporter with Variable {
   override def syntax =
     Syntax.reporterSyntax(
       ret = Syntax.WildcardType | Syntax.ReferenceType,
       agentClassString = "---L")
 }
-case class _linkvariable(vn: Int, returnType: Int = Syntax.WildcardType) extends Reporter {
+case class _linkvariable(vn: Int, returnType: Int = Syntax.WildcardType) extends Reporter with Variable {
   override def syntax =
     Syntax.reporterSyntax(ret = returnType | Syntax.ReferenceType, agentClassString = "---L")
 }
@@ -368,7 +368,7 @@ case class _patchvariable(vn: Int, returnType: Int = Syntax.WildcardType) extend
     new Reference(AgentKind.Patch, vn, this)
   override def toString = s"_patchvariable($vn)"
 }
-case class _procedurevariable(vn: Int, name: String) extends Reporter {
+case class _procedurevariable(vn: Int, name: String) extends Reporter with Variable {
   override def syntax =
     Syntax.reporterSyntax(
       ret = Syntax.WildcardType)
@@ -476,11 +476,14 @@ case class _turtles() extends Reporter {
     Syntax.reporterSyntax(
       ret = Syntax.TurtlesetType)
 }
-case class _turtleorlinkvariable(varName: String, returnType: Int = Syntax.WildcardType) extends Reporter {
+case class _turtleorlinkvariable(varName: String, returnType: Int = Syntax.WildcardType) extends Reporter with Variable {
   override def syntax =
     Syntax.reporterSyntax(ret = returnType | Syntax.ReferenceType, agentClassString = "-T-L")
 }
-case class _turtlevariable(vn: Int, returnType: Int = Syntax.WildcardType) extends Reporter with Referenceable {
+case class _turtlevariable(vn: Int, returnType: Int = Syntax.WildcardType)
+  extends Reporter
+  with Referenceable
+  with Variable {
   def makeReference =
     new Reference(AgentKind.Turtle, vn, this)
   override def syntax =
