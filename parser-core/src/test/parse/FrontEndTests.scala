@@ -152,7 +152,7 @@ class FrontEndTests extends FunSuite {
       "_foreach()[_const([1.0, 2.0, 3.0])[], _commandlambda(_0)[[_print()[_lambdavariable(_0)[]]]]]")
   }
   test("UnaryMinus") {
-    runTest("__ignore - 5",
+    runTest("__ignore (- 5)",
       "_ignore()[_unaryminus()[_const(5.0)[]]]")
   }
   test("ParseConstantInteger") {
