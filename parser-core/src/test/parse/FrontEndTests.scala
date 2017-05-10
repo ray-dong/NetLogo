@@ -151,6 +151,10 @@ class FrontEndTests extends FunSuite {
     runTest("foreach [1 2 3] print",
       "_foreach()[_const([1.0, 2.0, 3.0])[], _commandlambda(_0)[[_print()[_lambdavariable(_0)[]]]]]")
   }
+  test("UnaryMinus") {
+    runTest("__ignore - 5",
+      "_ignore()[_unaryminus()[_const(5.0)[]]]")
+  }
   test("ParseConstantInteger") {
     runTest("__ignore 5",
       "_ignore()[_const(5.0)[]]")
@@ -268,6 +272,9 @@ class FrontEndTests extends FunSuite {
   // TODO: These are not great error messages - should mention unclosed parentheses
   test("list missing close paren") {
     runFailure("show (list 1 2", "No closing parenthesis for this open parenthesis.", 5, 6)
+  }
+  test("list with too many arguments (no parens)") {
+    runFailure("show list 1 2 3", "Expected command.", 14, 15)
   }
   test("expects parenthesized expressions to contain only one statement") {
     runFailure("(show list 1 2 show 3)", "Expected a closing parenthesis here.", 15, 19)
