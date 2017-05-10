@@ -227,7 +227,7 @@ object ExpressionParser {
     import ctx.scope
 
     // println("context precedence: " + ctx.precedence)
-    // println(stack.reverse.mkString("//"))
+    println(stack.reverse.mkString("//"))
 
     val secondFromTop = if (stack.length < 2) None else stack(1)
     stack match {
@@ -255,8 +255,8 @@ object ExpressionParser {
         (processReporter(rep, tok, args, ap.neededArgument, scope) :: ap :: rest, ctx.copy(precedence = ap.precedence))
       case PartialReporter(rep, tok) :: rest =>
         PartialReporterAndArgs(rep, tok, Seq()) :: rest
-      case PartialReporterApp(app) :: PartialCommand(cmd, tok) :: rest =>
-        PartialCommandAndArgs(cmd, tok, Seq(app)) :: rest
+      case (ra: PartialReporterApp) :: PartialCommand(cmd, tok) :: rest =>
+        ra :: PartialCommandAndArgs(cmd, tok, Seq()) :: rest
       case PartialReporterApp(app) :: PartialReporterAndArgs(rep, tok, args) :: rest =>
         // we aren't yet handling variadics properly
         PartialReporterAndArgs(rep, tok, args :+ app) :: rest
@@ -328,6 +328,9 @@ object ExpressionParser {
       case Atom(token@Token(_, TokenType.Reporter, rep: core.Reporter)) =>
         PartialReporter(rep, token)
       case bg: BracketGroup =>
+        println(ctx.scope.get("BAZ"))
+        val db = DelayedBlock(bg, ctx.scope)
+        println(db)
         PartialDelayedBlock(DelayedBlock(bg, ctx.scope))
       case ParenGroup(inner, start, end) =>
         val intermediateResult = runRec(Nil, inner, ctx, _ => true)
@@ -474,7 +477,7 @@ object ExpressionParser {
           varApps :+ new core.CommandBlock(new core.Statements(tok.filename), tok.sourceLocation, synthetic = true)
         else varApps
 
-      val lambda = new core.prim._commandlambda(varNames, Seq.empty[Token], synthetic = true)
+      val lambda = new core.prim._commandlambda(varApps.map(_.reporter.token), synthetic = true)
       lambda.token = tok
 
       val stmt = new core.Statement(cmd, stmtArgs, tok.sourceLocation)
@@ -529,7 +532,7 @@ object ExpressionParser {
       case (PartialReporterApp(app), remainingGroups) =>
         resolveType(Syntax.WildcardType, app, null, scope).map[Partial] {
           case (expr: core.ReporterApp) =>
-            val lambda = new core.prim._reporterlambda(block.argNames, block.argTokens, false)
+            val lambda = new core.prim._reporterlambda(block.argTokens)
             lambda.token = block.openBracket
             val ra = new core.ReporterApp(lambda, Seq(expr), block.group.location)
             PartialReporterApp(new core.ReporterApp(lambda, Seq(expr), block.group.location))
@@ -575,7 +578,7 @@ object ExpressionParser {
   def processCommandLambda(block: ArrowLambdaBlock, scope: SymbolTable): Partial = {
     runRec(Nil, block.bodyGroups, ParsingContext(Syntax.CommandPrecedence, block.internalScope), _.isInstanceOf[PartialStatements]).flatMap {
       case (PartialStatements(stmts), remainingGroups) if remainingGroups.isEmpty =>
-        val lambda = new core.prim._commandlambda(block.argNames, block.argTokens, false)
+        val lambda = new core.prim._commandlambda(block.argTokens, false)
         lambda.token = block.openBracket
         val blockArg = commandBlockWithStatements(block.group.location, stmts.stmts)
         val ra = new core.ReporterApp(lambda, Seq(blockArg), block.group.location)
@@ -1116,8 +1119,8 @@ object ExpressionParser {
     }
     val varApps = varNames.map { vn =>
       val lv = new core.prim._lambdavariable(vn, synthetic = true)
-      lv.token = token
-      new core.ReporterApp(lv, SourceLocation(token.start, token.end, token.filename))
+      lv.token = Token(vn, TokenType.Reporter, lv)(token.sourceLocation)
+      new core.ReporterApp(lv, lv.token.sourceLocation)
     }
     (varNames, varApps)
   }
@@ -1130,7 +1133,7 @@ object ExpressionParser {
    */
   private def expandConciseReporterLambda(rApp: core.ReporterApp, reporter: core.Reporter, scope: SymbolTable): core.ReporterApp = {
     val (varNames, varApps) = syntheticVariables(reporter.syntax.totalDefault, reporter.token, scope)
-    val lambda = new core.prim._reporterlambda(varNames, Seq.empty[Token], synthetic = true)
+    val lambda = new core.prim._reporterlambda(varApps.map(_.reporter.token), synthetic = true)
     lambda.token = reporter.token
     new core.ReporterApp(lambda, Seq(rApp.withArguments(varApps)), reporter.token.sourceLocation)
   }
@@ -1150,7 +1153,7 @@ object ExpressionParser {
           varApps :+ new core.CommandBlock(new core.Statements(token.filename), token.sourceLocation, synthetic = true)
         else varApps
 
-      val lambda = new core.prim._commandlambda(varNames, Seq.empty[Token], synthetic = true)
+      val lambda = new core.prim._commandlambda(varApps.map(_.reporter.token), synthetic = true)
       lambda.token = token
 
       val stmt = new core.Statement(coreCommand, stmtArgs, token.sourceLocation)
@@ -1248,17 +1251,17 @@ object ExpressionParser {
       for {
         expr <- reporterApp(block, Syntax.WildcardType, block.internalScope)
       } yield {
-        val lambda = new core.prim._reporterlambda(argTokens.map(_.text.toUpperCase), argTokens, false)
+        val lambda = new core.prim._reporterlambda(argTokens, false)
         lambda.token = block.openBracket
         new core.ReporterApp(lambda, Seq(expr), block.group.location)
       }
     }
 
-    def buildCommandLambda(argNames: Seq[Token]) = {
+    def buildCommandLambda(argTokens: Seq[Token]) = {
       for {
         stmtList <- statementList(block, block.internalScope)
       } yield {
-        val lambda = new core.prim._commandlambda(argNames, false)
+        val lambda = new core.prim._commandlambda(argTokens, false)
         lambda.token = block.openBracket
         val blockArg = commandBlockWithStatements(block.group.location, stmtList)
         new core.ReporterApp(lambda, Seq(blockArg), block.group.location)

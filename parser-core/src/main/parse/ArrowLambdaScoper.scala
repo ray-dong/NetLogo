@@ -8,6 +8,7 @@ import org.nlogo.core.prim.{ _lambdavariable, _unknownidentifier }
 import scala.annotation.tailrec
 
 object ArrowLambdaScoper {
+  // returns args, body groups, symbol table. Body groups does not include arrow token
   def apply(group: BracketGroup, usedNames: SymbolTable): Option[(Seq[Token], Seq[SyntaxGroup], SymbolTable)] = {
     val containsArrow =
       group.innerGroups.exists {

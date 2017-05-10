@@ -33,9 +33,9 @@ class ArrowLambdaBlock(
   val bodyGroups:     Seq[SyntaxGroup],
   val internalScope:  SymbolTable,
   val sourceLocation: SourceLocation) extends DelayedBlock {
-    def openBracket = group.open
+    val argNames: Seq[String] = argTokens.map(_.text.toUpperCase)
 
-    val argNames = argTokens.map(_.text.toUpperCase)
+    def openBracket = group.open
 
     def allTokens = group.allTokens
 

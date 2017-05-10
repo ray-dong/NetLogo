@@ -321,13 +321,13 @@ class FrontEndTests extends FunSuite {
   test("unbracketed lambda argument shadows local variable") {
     runFailure("let baz 7 __ignore [baz -> 3]", "There is already a local variable here called BAZ", 20, 23)
   }
-  test("lambda argument shadows procedure name") {
+  test("lambda argument shadows local variable name") {
     runFailure("let baz [[baz] -> 3]", "There is already a local variable here called BAZ", 10, 13)
   }
-  test("unbracketed lambda argument shadows procedure name") {
+  test("unbracketed lambda argument shadows local variable name") {
     runFailure("let baz [baz -> 3]", "There is already a local variable here called BAZ", 9, 12)
   }
-  test("lambda argument shadows procedure variable") {
+  test("lambda argument shadows procedure variable name") {
     runFailure("__ignore [[bar] -> 2]", "There is already a local variable here called BAR", 11, 14, "to foo [bar] ")
   }
   test("DoParseForeach") {
