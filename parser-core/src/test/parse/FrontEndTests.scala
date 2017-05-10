@@ -439,7 +439,7 @@ class FrontEndTests extends FunSuite {
       "Statement 'crt 1'",
       "ReporterApp '1'",
       "CommandBlock ''",
-      "Statements ''").mkString("", "\n ", "\n "))
+      "Statements ''").mkString("", "\n ", " "))
   }
 
   // issue #417 (source positions for literal lists)
