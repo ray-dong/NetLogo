@@ -445,7 +445,7 @@ object ExpressionParser {
           varApps :+ new core.CommandBlock(new core.Statements(tok.filename), tok.sourceLocation, synthetic = true)
         else varApps
 
-      val lambda = new core.prim._commandlambda(varNames, synthetic = true)
+      val lambda = new core.prim._commandlambda(varNames, Seq.empty[Token], synthetic = true)
       lambda.token = tok
 
       val stmt = new core.Statement(cmd, stmtArgs, tok.sourceLocation)
@@ -463,12 +463,16 @@ object ExpressionParser {
       processReporterLambda(block.asInstanceOf[ArrowLambdaBlock], scope) // TODO: switch this to a `case`?
     else if (block.isArrowLambda)
       processCommandLambda(block.asInstanceOf[ArrowLambdaBlock], scope) // TODO: switch this to a `case`?
-    else if (compatible(goalType, Syntax.ListType))
-      processLiteralList(block)
     else if (compatible(goalType, Syntax.ReporterBlockType))
       processReporterBlock(block, scope)
     else if (compatible(goalType, Syntax.CommandBlockType))
       processCommandBlock(block, scope)
+    else if (compatible(goalType, Syntax.ListType))
+      processLiteralList(block)
+    else if (compatible(goalType, Syntax.ReporterType) && !block.isCommand)
+      processReporterLambda(block.toLambda, scope)
+    else if (compatible(goalType, Syntax.CommandType) && block.isCommand)
+      processCommandLambda(block.toLambda, scope)
     else
       PartialError(fail(s"Expected ${core.TypeNames.aName(goalType)} here, rather than a list or block.", block))
   }
@@ -494,7 +498,7 @@ object ExpressionParser {
       case (PartialReporterApp(app), remainingGroups) =>
         resolveType(Syntax.WildcardType, app, null, scope).map[Partial] {
           case (expr: core.ReporterApp) =>
-            val lambda = new core.prim._reporterlambda(block.argNames)
+            val lambda = new core.prim._reporterlambda(block.argNames, block.argTokens, false)
             lambda.token = block.openBracket
             val ra = new core.ReporterApp(lambda, Seq(expr), block.group.location)
             PartialReporterApp(new core.ReporterApp(lambda, Seq(expr), block.group.location))
@@ -540,7 +544,7 @@ object ExpressionParser {
   def processCommandLambda(block: ArrowLambdaBlock, scope: SymbolTable): Partial = {
     runRec(Nil, block.bodyGroups, ParsingContext(Syntax.CommandPrecedence, block.internalScope), _.isInstanceOf[PartialStatements]).flatMap {
       case (PartialStatements(stmts), remainingGroups) if remainingGroups.isEmpty =>
-        val lambda = new core.prim._commandlambda(block.argNames, false)
+        val lambda = new core.prim._commandlambda(block.argNames, block.argTokens, false)
         lambda.token = block.openBracket
         val blockArg = commandBlockWithStatements(block.group.location, stmts.stmts)
         val ra = new core.ReporterApp(lambda, Seq(blockArg), block.group.location)
