@@ -94,6 +94,14 @@ class FrontEndTests extends FunSuite {
       "_ignore()[_round()[_const(0.5)[]]] " +
       "_fd()[_const(5.0)[]]")
   }
+  test("DoParseEmpty") {
+    runTest("", "")
+  }
+  test("DoParseParens1") {
+    runTest("run [ show (word \"a\" \"1\") ] fd 1",
+      "_run()[_commandlambda()[[_show()[_word()[_const(a)[], " +
+      "_const(1)[]]]]]] _fd()[_const(1)[]]")
+  }
   test("parseSymbolUnknownName") {
     runTest("report __symbol foo", "_report()[_symbolstring()[_symbol()[]]]", preamble = "to-report sym ")
   }
