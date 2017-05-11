@@ -102,6 +102,9 @@ class FrontEndTests extends FunSuite {
       "_run()[_commandlambda()[[_show()[_word()[_const(a)[], " +
       "_const(1)[]]]]]] _fd()[_const(1)[]]")
   }
+  test("DoParseRunResult") {
+    runTest("report (runresult \"0.5\")", "_report()[_runresult()[_const(0.5)[]]]", "to-report foo ")
+  }
   test("DoParseOptionalBlock") {
     runTest("crt 10 ", "_createturtles()[_const(10)[], []]")
   }
