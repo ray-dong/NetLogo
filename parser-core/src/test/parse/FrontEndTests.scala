@@ -102,6 +102,9 @@ class FrontEndTests extends FunSuite {
       "_run()[_commandlambda()[[_show()[_word()[_const(a)[], " +
       "_const(1)[]]]]]] _fd()[_const(1)[]]")
   }
+  test("DoParseOptionalBlock") {
+    runTest("crt 10 ", "_createturtles()[_const(10)[], []]")
+  }
   test("parseSymbolUnknownName") {
     runTest("report __symbol foo", "_report()[_symbolstring()[_symbol()[]]]", preamble = "to-report sym ")
   }
