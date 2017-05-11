@@ -152,8 +152,7 @@ object ExpressionParser {
       (neededArgument == Syntax.CommandType) ||
         (neededArgument == Syntax.ReporterType) ||
         (neededArgument == (Syntax.ReporterType | Syntax.CommandType)) ||
-        (neededArgument == Syntax.SymbolType) ||
-        (neededArgument == Syntax.ReferenceType)
+        (neededArgument == Syntax.SymbolType)
     def parseContext = ArgumentParseContext(instruction, instruction.token.sourceLocation)
     def withArgument(arg: core.Expression): ApplicationPartial
     def isVariadic = syntax.isVariadic
@@ -239,7 +238,7 @@ object ExpressionParser {
     import ctx.scope
 
     // println("context precedence: " + ctx.precedence)
-    // println(stack.reverse.mkString("//"))
+    println(stack.reverse.mkString("//"))
 
     val secondFromTop = if (stack.length < 2) None else stack(1)
     stack match {
@@ -253,14 +252,29 @@ object ExpressionParser {
       // Error(ExpectedCommand) -> Stmt id
       case PartialReporter(rep: core.prim._unknownidentifier, tok) :: PartialStatement(_) :: rest =>
         List(PartialError(fail(ExpectedCommand, tok)))
-      case PartialInstruction(ins, tok) :: (ap: ApplicationPartial) :: rest if ap.neededArgument == Syntax.SymbolType =>
+      case PartialInstruction(ins, tok) :: (ap: ApplicationPartial) :: rest                if ap.neededArgument == Syntax.SymbolType =>
         (ap.withArgument(processSymbol(tok)) :: rest, ctx.copy(precedence = ap.precedence))
       // Arg -> ConciseReporter | ConciseCommand | RepApp | ReporterBlock | CommandBlock
-      case PartialInstruction(rep: core.Reporter, tok) :: (ap: ApplicationPartial) :: rest if ap.neededArgument == Syntax.ReporterType =>
-        (processReporter(rep, tok, Seq(), ap.neededArgument, scope) :: ap :: rest, ctx.copy(precedence = ap.precedence))
+      case PartialInstruction(rep: core.Reporter, tok) :: (ap: ApplicationPartial) :: rest if ap.needsSymbolicArgument =>
+        println("HERE!")
+        if (ap.neededArgument == Syntax.CommandType)
+          (PartialReporterAndArgs(rep, tok, Seq()) :: ap :: rest, ctx.copy(precedence = rep.syntax.precedence))
+        else {
+          val conciseInstruction =
+            processConciseInstruction(rep, tok, ap.neededArgument, ap.parseContext, scope) match {
+              case f: FailedParse => PartialError(f)
+              case SuccessfulParse(app) => PartialReporterApp(app)
+            }
+          (conciseInstruction :: ap :: rest, ctx.copy(precedence = ap.precedence))
+        }
       // Arg -> ConciseCommand | ConciseReporter | RepApp | ReporterBlock | CommandBlock
       case PartialCommand(cmd, tok) :: (ap: ApplicationPartial) :: rest                    if ap.needsSymbolicArgument =>
-        (cmdToReporterApp(cmd, tok, ap.neededArgument, ap.parseContext, scope) :: ap :: rest, ctx.copy(precedence = ap.precedence))
+        val newPartial = cmdToReporterApp(cmd, tok, ap.neededArgument, ap.parseContext, scope) match {
+          case f: FailedParse => PartialError(f)
+          case SuccessfulParse(app) => PartialReporterApp(app)
+        }
+
+        (newPartial :: ap :: rest, ctx.copy(precedence = ap.precedence))
       // Arg -> CommandBlock | ReporterBlock | RepApp | ConciseCommand | ConciseReporter
       case (arg: ArgumentPartial) :: (ap: ApplicationPartial) :: rest =>
         resolveType(ap.neededArgument, arg.expression, ap.instruction.displayName, ctx.scope) match {
@@ -295,7 +309,7 @@ object ExpressionParser {
       case PartialCommandAndArgs(cmd, tok, args) :: rest =>
         val (p, newScope) = processStatement(cmd, tok, args, scope)
         (p :: rest, ctx.copy(scope = newScope))
-      case PartialDelayedBlock(db) :: (pc: ApplicationPartial) :: rest if pc.needsArguments =>
+      case PartialDelayedBlock(db) :: (pc: ApplicationPartial) :: rest if pc.needsArguments || (pc.isVariadic && ctx.variadic) =>
         processDelayedBlock(db, pc.neededArgument, scope) :: pc :: rest
       case (pr@PartialReporterAndArgs(rep, tok, args)) :: Nil if ! pr.needsArguments => // this case comes up when parsing reporter lambda (and probably blocks)
         (processReporter(rep, tok, args, Syntax.WildcardType, scope) :: Nil, ctx.copy(precedence = Syntax.CommandPrecedence))
@@ -479,16 +493,25 @@ object ExpressionParser {
     new core.ReporterApp(symbol, tok.sourceLocation)
   }
 
+  def processConciseInstruction(instruction: core.Instruction, tok: Token, goalType: Int, parseContext: ArgumentParseContext, scope: SymbolTable): ParseResult[core.ReporterApp] = {
+    instruction match {
+      case rep: core.Reporter =>
+        val rApp = new core.ReporterApp(rep, tok.sourceLocation)
+        SuccessfulParse(expandConciseReporterLambda(rApp, rep, scope))
+      case cmd: core.Command =>
+        cmdToReporterApp(cmd, tok, goalType, parseContext, scope)
+    }
+  }
+
   def processReporter(rep: core.Reporter, tok: Token, args: Seq[core.Expression], goalType: Int, scope: SymbolTable): Partial = {
     val newRepApp: ParseResult[core.ReporterApp] =
       if (rep.isInstanceOf[core.prim._const])
         SuccessfulParse(new core.ReporterApp(rep, tok.sourceLocation))
       else if (compatible(goalType, Syntax.SymbolType))
         SuccessfulParse(processSymbol(tok))
-      else if (goalType == Syntax.ReporterType) {
-        val rApp = new core.ReporterApp(rep, tok.sourceLocation)
-        SuccessfulParse(expandConciseReporterLambda(rApp, rep, scope))
-      } else {
+      else if (goalType == Syntax.ReporterType)
+        processConciseInstruction(rep, tok, goalType, ArgumentParseContext(rep, tok.sourceLocation), scope)
+      else {
         rep match {
           case s: core.prim._symbol =>
             scope.get(s.token.text.toUpperCase)
@@ -529,12 +552,12 @@ object ExpressionParser {
     }
   }
 
-  def cmdToReporterApp(cmd: core.Command, tok: Token, goalType: Int, parseContext: ArgumentParseContext, scope: SymbolTable): Partial = {
+  def cmdToReporterApp(cmd: core.Command, tok: Token, goalType: Int, parseContext: ArgumentParseContext, scope: SymbolTable): ParseResult[core.ReporterApp] = {
     if (! cmd.syntax.canBeConcise) // this error may need to be one of two different things, depending on parent context
       if (parseContext.instruction.isInstanceOf[core.Reporter])
-        PartialError(fail(ExpectedReporter, tok))
+        fail(ExpectedReporter, tok)
       else
-        PartialError(fail(parseContext.missingInput(0), parseContext.location))
+        fail(parseContext.missingInput(0), parseContext.location)
     else {
       val (varNames, varApps) = syntheticVariables(cmd.syntax.totalDefault, tok, scope)
       val stmtArgs =
@@ -551,7 +574,7 @@ object ExpressionParser {
 
       val commandBlock = commandBlockWithStatements(tok.sourceLocation, Seq(stmt), synthetic = true)
 
-      PartialReporterApp(new core.ReporterApp(lambda, Seq(commandBlock), tok.sourceLocation))
+      SuccessfulParse(new core.ReporterApp(lambda, Seq(commandBlock), tok.sourceLocation))
     }
   }
 
