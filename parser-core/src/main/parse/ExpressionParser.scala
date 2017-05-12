@@ -226,14 +226,47 @@ object ExpressionParser {
     val primacy = -1
   }
 
-  case class ParsingContext(precedence: Int, scope: SymbolTable, variadic: Boolean)
+  case class ParsingContext[A](precedence: Int, scope: SymbolTable, variadic: Boolean, goal: Goal[A])
 
+  trait Goal[A] {
+    def finished(p: Partial): Option[A]
+    def emptyDefault: ParseResult[A]
+  }
+
+  case class StatementsGoal(filename: String) extends Goal[core.Statements] {
+    def finished(p: Partial): Option[core.Statements] =
+      p match {
+        case PartialStatements(stmts) => Some(stmts)
+        case _ => None
+      }
+    def emptyDefault =
+      SuccessfulParse(new core.Statements(filename, Seq()))
+  }
+
+  case class ReporterAppGoal(location: SourceLocation) extends Goal[core.ReporterApp] {
+    def finished(p: Partial): Option[core.ReporterApp] =
+      p match {
+        case PartialReporterApp(ra) => Some(ra)
+        case _ => None
+      }
+     def emptyDefault =
+       fail(ExpectedReporter, location)
+  }
+
+  case class ParenthesizedCommand(failure: ParseResult[Nothing]) extends Goal[core.Statements] {
+    def finished(p: Partial): Option[core.Statements] =
+      p match {
+        case PartialStatements(stmts) => Some(stmts)
+        case _ => None
+      }
+    def emptyDefault = failure
+  }
   import scala.reflect.ClassTag
 
-  def reduce(stack: List[Partial], ctx: ParsingContext): (List[Partial], ParsingContext) = {
+  def reduce[A](stack: List[Partial], ctx: ParsingContext[A]): (List[Partial], ParsingContext[A]) = {
     // I hope both of these two lines are only temporary
     import scala.language.implicitConversions
-    implicit def partialListToTuple(l: List[Partial]): (List[Partial], ParsingContext) = (l, ctx)
+    implicit def partialListToTuple(l: List[Partial]): (List[Partial], ParsingContext[A]) = (l, ctx)
 
     import ctx.scope
 
@@ -241,7 +274,7 @@ object ExpressionParser {
     println(stack.reverse.mkString("//"))
 
     val secondFromTop = if (stack.length < 2) None else stack(1)
-    stack match {
+    val pf: PartialFunction[List[Partial], (List[Partial], ParsingContext[A])] = {
       // Stmts -> Stmt | Stmts Stmt
       case PartialStatement(stmt) :: Nil =>
         PartialStatements(new core.Statements(stmt.filename, Seq(stmt))) :: Nil
@@ -315,8 +348,11 @@ object ExpressionParser {
         (processReporter(rep, tok, args, Syntax.WildcardType, scope) :: Nil, ctx.copy(precedence = Syntax.CommandPrecedence))
       case PartialDelayedBlock(db) :: Nil => // this case comes up when parsing reporter lambda (and possibly reporter blocks)
         processDelayedBlock(db, Syntax.WildcardType, scope) :: Nil
-      case _ => List(PartialError(fail("unknown parse for: " + stack.reverse.mkString(" // "), SourceLocation(0, 0, ""))))
     }
+
+    pf.applyOrElse(stack, { (s: List[Partial]) =>
+      List(PartialError(fail("unknown parse for: " + s.reverse.mkString(" // "), SourceLocation(0, 0, ""))))
+    })
   }
 
   // Things remaining as of 5/11/17:
@@ -374,7 +410,7 @@ object ExpressionParser {
     }
   }
 
-  def shouldShift(p: Partial, g: SyntaxGroup, c: ParsingContext): Boolean = {
+  def shouldShift[A](p: Partial, g: SyntaxGroup, c: ParsingContext[A]): Boolean = {
     val stackPrimacy = p.primacy
     (p, g) match {
       case (_, pg: ParenGroup) =>
@@ -398,7 +434,7 @@ object ExpressionParser {
     }
   }
 
-  def shift(p: Option[Partial], g: SyntaxGroup, ctx: ParsingContext): Partial = {
+  def shift[A](p: Option[Partial], g: SyntaxGroup, ctx: ParsingContext[A]): Partial = {
     g match {
       case Atom(token@Token(_, TokenType.Command, cmd: core.Command)) =>
         PartialCommand(cmd, token)
@@ -415,13 +451,13 @@ object ExpressionParser {
       case pg@ParenGroup(inner, start, end) =>
         p match {
           case Some(_: ApplicationPartial | _: PartialCommand) =>
-            runRec(Nil, inner, ctx.copy(variadic = true), ReporterAppGoal(pg.location)) match {
+            runRec(Nil, inner, ctx.copy(variadic = true, goal = ReporterAppGoal(pg.location))) match {
               case SuccessfulParse((ra: core.ReporterApp, Seq())) => PartialReporterApp(ra)
               case SuccessfulParse((p, Seq(g, _*))) => PartialError(fail(ExpectedCloseParen, g.location))
               case f: FailedParse => PartialError(f)
             }
           case _ =>
-            runRec(Nil, inner, ctx.copy(variadic = true), ParenthesizedCommand(fail(ExpectedCommand, pg.location))) match {
+            runRec(Nil, inner, ctx.copy(variadic = true, goal = ParenthesizedCommand(fail(ExpectedCommand, pg.location)))) match {
               case SuccessfulParse((stmts, Seq())) =>
                 if (stmts.stmts.length == 1) PartialStatement(stmts.stmts.head)
                 else PartialError(fail(ExpectedCloseParen, stmts.stmts(1).command.token))
@@ -433,54 +469,20 @@ object ExpressionParser {
     }
   }
 
-  trait Goal[A] {
-    def finished(p: Partial): Option[A]
-    def emptyDefault: ParseResult[A]
-  }
-
-  case class StatementsGoal(filename: String) extends Goal[core.Statements] {
-    def finished(p: Partial): Option[core.Statements] =
-      p match {
-        case PartialStatements(stmts) => Some(stmts)
-        case _ => None
-      }
-    def emptyDefault =
-      SuccessfulParse(new core.Statements(filename, Seq()))
-  }
-
-  case class ReporterAppGoal(location: SourceLocation) extends Goal[core.ReporterApp] {
-    def finished(p: Partial): Option[core.ReporterApp] =
-      p match {
-        case PartialReporterApp(ra) => Some(ra)
-        case _ => None
-      }
-     def emptyDefault =
-       fail(ExpectedReporter, location)
-  }
-
-  case class ParenthesizedCommand(failure: ParseResult[Nothing]) extends Goal[core.Statements] {
-    def finished(p: Partial): Option[core.Statements] =
-      p match {
-        case PartialStatements(stmts) => Some(stmts)
-        case _ => None
-      }
-    def emptyDefault = failure
-  }
-
-  def runRec[A](stack: List[Partial], groups: Seq[SyntaxGroup], ctx: ParsingContext, goal: Goal[A]): RemainingParseResult[A] = {
+  def runRec[A](stack: List[Partial], groups: Seq[SyntaxGroup], ctx: ParsingContext[A]): RemainingParseResult[A] = {
     stack.headOption match {
       case Some(PartialError(failure)) => failure
       case _ =>
-        lazy val finishedResult = stack.headOption.flatMap(goal.finished)
+        lazy val finishedResult = stack.headOption.flatMap(ctx.goal.finished)
         if (groups.isEmpty && stack.length == 1 && finishedResult.nonEmpty)
           SuccessfulParse((finishedResult.get, Seq()))
         else if (groups.isEmpty && stack.isEmpty)
-          goal.emptyDefault.map(p => (p, groups))
+          ctx.goal.emptyDefault.map(p => (p, groups))
         else if (groups.nonEmpty && stack.headOption.forall(p => shouldShift(p, groups.head, ctx)))
-          runRec(shift(stack.headOption, groups.head, ctx) :: stack, groups.tail, ctx, goal)
+          runRec(shift(stack.headOption, groups.head, ctx) :: stack, groups.tail, ctx)
         else {
           val (newStack, newCtx) = reduce(stack, ctx)
-          runRec(newStack, groups, newCtx, goal)
+          runRec(newStack, groups, newCtx)
         }
     }
   }
@@ -488,7 +490,7 @@ object ExpressionParser {
   def apply(procedureDeclaration: FrontEndProcedure, tokens: Iterator[Token], scope: SymbolTable): core.ProcedureDefinition = {
     //.init to avoid Eof awkwardness
     val groupedTokens = groupSyntax(tokens.buffered).get
-    runRec(Nil, groupedTokens.init, ParsingContext(Syntax.CommandPrecedence, scope, false), StatementsGoal(procedureDeclaration.filename)).get match {
+    runRec(Nil, groupedTokens.init, ParsingContext(Syntax.CommandPrecedence, scope, false, StatementsGoal(procedureDeclaration.filename))).get match {
       case (stmts, _) =>
         val tokenEnd = groupedTokens.lastOption.map(_.end.start).getOrElse(Int.MaxValue)
         val end = if (tokenEnd < Int.MaxValue) tokenEnd else stmts.end
@@ -648,7 +650,7 @@ object ExpressionParser {
   }
 
   def processReporterBlock(block: DelayedBlock, scope: SymbolTable): Partial = {
-    runRec(Nil, block.bodyGroups, ParsingContext(Syntax.CommandPrecedence, block.internalScope, false), ReporterAppGoal(block.group.location)).flatMap {
+    runRec(Nil, block.bodyGroups, ParsingContext(Syntax.CommandPrecedence, block.internalScope, false, ReporterAppGoal(block.group.location))).flatMap {
       case (app, remainingGroups) =>
         resolveType(Syntax.WildcardType, app, null, scope).map[Partial] {
           case (expr: core.ReporterApp) =>
@@ -663,7 +665,7 @@ object ExpressionParser {
   }
 
   def processReporterLambda(block: ArrowLambdaBlock, scope: SymbolTable): Partial = {
-    runRec(Nil, block.bodyGroups, ParsingContext(Syntax.CommandPrecedence, block.internalScope, false), ReporterAppGoal(block.group.location)).flatMap {
+    runRec(Nil, block.bodyGroups, ParsingContext(Syntax.CommandPrecedence, block.internalScope, false, ReporterAppGoal(block.group.location))).flatMap {
       case (app, remainingGroups) =>
         resolveType(Syntax.WildcardType, app, null, scope).map[Partial] {
           case (expr: core.ReporterApp) =>
@@ -687,7 +689,7 @@ object ExpressionParser {
         new core.Statements(file),
         SourceLocation(block.group.start.start, block.group.end.end, file)))
     } else
-      runRec(Nil, block.bodyGroups, ParsingContext(Syntax.CommandPrecedence, block.internalScope, false), StatementsGoal(block.group.location.filename)).flatMap {
+      runRec(Nil, block.bodyGroups, ParsingContext(Syntax.CommandPrecedence, block.internalScope, false, StatementsGoal(block.group.location.filename))).flatMap {
         case (stmts, remainingGroups) if remainingGroups.isEmpty =>
           SuccessfulParse(PartialCommandBlock(commandBlockWithStatements(block.group.location, stmts.stmts)))
         case (_, remainingGroups) => fail(ExpectedCommand, remainingGroups.head.start)
@@ -709,7 +711,7 @@ object ExpressionParser {
   }
 
   def processCommandLambda(block: ArrowLambdaBlock, scope: SymbolTable): Partial = {
-    runRec(Nil, block.bodyGroups, ParsingContext(Syntax.CommandPrecedence, block.internalScope, false), StatementsGoal(block.group.location.filename)).flatMap {
+    runRec(Nil, block.bodyGroups, ParsingContext(Syntax.CommandPrecedence, block.internalScope, false, StatementsGoal(block.group.location.filename))).flatMap {
       case (stmts, remainingGroups) if remainingGroups.isEmpty =>
         val lambda = new core.prim._commandlambda(block.argTokens, false)
         lambda.token = block.openBracket
