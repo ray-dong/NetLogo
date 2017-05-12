@@ -11,13 +11,14 @@ import SymbolType._
 import scala.annotation.tailrec
 import collection.mutable.Buffer
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.Try
 
 /**
  * Parses procedure bodies.
  */
 
 object ExpressionParser {
+  import ParseResult.fail
 
   /**
    * one less than the lowest valid operator precedence. See Syntax.
@@ -50,42 +51,6 @@ object ExpressionParser {
 
   type RemainingParseResult[A] = ParseResult[(A, Seq[SyntaxGroup])]
 
-  // prototypical operation
-  // (Seq[SyntaxGroup], A) => Either[Failure, (Seq[SyntaxGroup], B)]
-  //
-  // We could think of decomposing this into a state (Seq[SyntaxGroup]) and a validation (Failure).
-  object ParseResult {
-    def apply[A](a: A): ParseResult[A] = SuccessfulParse(a)
-    def fromTry[A](t: Try[A]) =
-      t match {
-        case Success(x) => SuccessfulParse(x)
-        case Failure(e: core.CompilerException) => FailedParse(ParseFailure(e.getMessage, e.start, e.end, e.filename))
-        case Failure(e) => throw e
-      }
-  }
-
-  sealed trait ParseResult[+A] {
-    def flatMap[B](f: A => ParseResult[B]): ParseResult[B]
-    def map[B](f: A => B): ParseResult[B]
-    def get: A
-    def exists(f: A => Boolean): Boolean
-    def recoverWith[B >: A](f: PartialFunction[ParseFailure, ParseResult[B]]): ParseResult[B]
-  }
-
-  case class ParseFailure(message: String, start: Int, end: Int, filename: String) {
-    def toException = new core.CompilerException(message, start, end, filename)
-  }
-
-  case class FailedParse(failure: ParseFailure) extends ParseResult[Nothing] {
-    def flatMap[A](f: Nothing => ParseResult[A]): ParseResult[A] = this
-    def map[A](f: Nothing => A): ParseResult[A] = this
-    def get = throw failure.toException
-    def exists(f: Nothing => Boolean): Boolean = false
-    def recoverWith[A](f: PartialFunction[ParseFailure, ParseResult[A]]): ParseResult[A] =
-      if (f.isDefinedAt(failure)) f(failure)
-      else this
-  }
-
   private class MissingPrefixFailure(val token: Token) extends
     ParseFailure("Missing prefix", token.start, token.end, token.filename)
 
@@ -99,22 +64,13 @@ object ExpressionParser {
   private class TypeMismatch(val arg: core.Expression, message: String, val expectedType: Int, val actualType: Int) extends
     ParseFailure(message, arg.start, arg.end, arg.filename)
 
-  case class SuccessfulParse[A](val parsed: A) extends ParseResult[A] {
-    def flatMap[B](f: A => ParseResult[B]): ParseResult[B] = f(parsed)
-    def map[B](f: A => B): ParseResult[B] = new SuccessfulParse(f(parsed))
-    def get = parsed
-    def exists(f: A => Boolean): Boolean = f(parsed)
-    def recoverWith[B >: A](f: PartialFunction[ParseFailure, ParseResult[B]]): ParseResult[A] =
-      this
+  implicit class RichParseResult[A](p: ParseResult[A]) {
+    def toPartial(f: A => Partial): Partial =
+      p match {
+        case f: FailedParse => PartialError(f)
+        case SuccessfulParse(other) => f(other)
+      }
   }
-
-  def fail(message: String, locatable: SourceLocatable): FailedParse =
-    fail(message, locatable.sourceLocation)
-  def fail(message: String, location: SourceLocation): FailedParse =
-    fail(message, location.start, location.end, location.filename)
-  def fail(message: String, start: Int, end: Int, filename: String): FailedParse =
-    FailedParse(ParseFailure(message, start, end, filename))
-
 
   implicit class RichRemainingParseResult[A](p: RemainingParseResult[A]) {
     def mapGroups(f: Seq[SyntaxGroup] => Seq[SyntaxGroup]): RemainingParseResult[A] =
@@ -288,52 +244,14 @@ object ExpressionParser {
     import ctx.scope
 
     // println("context precedence: " + ctx.precedence)
-    println(stack.reverse.mkString("//"))
-
-      // Cmd(3) -> CmdArgs(5)
-      // CmdArgs(5) -> Stmt(6)
-      // Reporter(1) -> ApplicationArgs(4)
-      // ApplicationArgs(4/5) Arg(2)     -> ApplicationArgs(4/5)
-      // ApplicationArgs(4/5) Arg(2)     -> ApplicationArgs(4/5) // this case and the prior one represent ambiguity
-      // ApplicationArgs(4/5) Sym(1/3)   -> ApplicationArgs(4/5)
-      // ApplicationArgs(4/5) CmdName(3) -> ApplicationArgs(4/5) RepApp(2)
-      // ApplicationArgs(4/5) RepName(1) -> ApplicationArgs(4/5) RepApp(2)
-      // ApplicationArgs(4/5) Block(2)   -> ApplicationArgs Exp(2)
-      // Arg(2) Infix(1)                 -> RepArgs(4)
-      // Block(2) Infix(1)               -> Arg(2) Infix(1)
-      // | ReporterArgs -> RepApp
-      // | Block -> Exp
-      // Stmt unknownid -> Error(ExpectedCommand)
-      // ^ RepApp Eof -> Error(ExpectedCommand)
-      // Stmt ReporterArgs -> Error(ExpectedCommand)
-      // (X) Infix -> Error(MissingInput)
-
-      // Cmd -> CmdArgs
-      // CmdArgs -> Stmt
-      // Reporter -> ApplicationArgs
-      // ApplicationArgs Arg -> ApplicationArgs
-      // ApplicationArgs RepArgs -> App
-      // ApplicationArgs Sym -> ApplicationArgs
-      // ApplicationArgs CmdName -> ApplicationArgs RepApp
-      // ApplicationArgs RepName -> ApplicationArgs RepApp
-      // ApplicationArgs Block -> ApplicationArgs Exp
-      // Arg Infix -> RepArgs
-      // Block Infix -> Arg Infix
-      // | ReporterArgs -> RepApp
-      // | Block -> Exp
-      // Stmt unknownid -> Error(ExpectedCommand)
-      // ^ RepApp Eof -> Error(ExpectedCommand)
-      // Stmt ReporterArgs -> Error(ExpectedCommand)
-      // (X) Infix -> Error(MissingInput)
+    // println(stack.reverse.mkString("//"))
 
     val secondFromTop = if (stack.length < 2) None else stack(1)
     val pf: PartialFunction[List[Partial], (List[Partial], ParsingContext[A])] = {
       // ApplicationArgs Exp -> ApplicationArgs
       case (arg: ArgumentPartial) :: (ap: ApplicationPartial) :: rest =>
-        resolveType(ap.neededArgument, arg.expression, ap.instruction.displayName, ctx.scope) match {
-          case f: FailedParse       => List(PartialError(f))
-          case SuccessfulParse(exp) => ap.withArgument(exp) :: rest
-        }
+        resolveType(ap.neededArgument, arg.expression, ap.instruction.displayName, ctx.scope)
+          .toPartial(ap.withArgument _) :: rest
       // ApplicationArgs RepArgs -> App
       case PartialReporterAndArgs(rep, tok, args) :: (ap: ApplicationPartial) :: rest if ap.needsArguments || (ap.isVariadic && (ctx.variadic || ap.args.length < ap.syntax.rightDefault)) =>
         (processReporter(rep, tok, args, ap.neededArgument, scope) :: ap :: rest, ctx.copy(precedence = ap.precedence))
@@ -354,20 +272,17 @@ object ExpressionParser {
       // ApplicationArgs RepName -> ApplicationArgs RepApp
       case PartialInstruction(rep: core.Reporter, tok) :: (ap: ApplicationPartial) :: rest if ap.needsSymbolicArgument && ap.neededArgument == Syntax.ReporterType =>
         val conciseInstruction =
-          processConciseInstruction(rep, tok, ap.neededArgument, ap.parseContext, scope) match {
-            case f: FailedParse => PartialError(f)
-            case SuccessfulParse(app) => PartialReporterApp(app)
-          }
+          processConciseInstruction(rep, tok, ap.neededArgument, ap.parseContext, scope)
+            .toPartial(PartialReporterApp.apply _)
+
         (conciseInstruction :: ap :: rest, ctx.copy(precedence = ap.precedence))
       // Reporter -> ApplicationArgs
       case PartialReporter(rep, tok) :: rest =>
         PartialReporterAndArgs(rep, tok, Seq()) :: rest
       // ApplicationArgs CmdName -> ApplicationArgs
       case PartialCommand(cmd, tok) :: (ap: ApplicationPartial) :: rest                    if ap.needsSymbolicArgument =>
-        val newPartial = cmdToReporterApp(cmd, tok, ap.neededArgument, ap.parseContext, scope) match {
-          case f: FailedParse => PartialError(f)
-          case SuccessfulParse(app) => PartialReporterApp(app)
-        }
+        val newPartial = cmdToReporterApp(cmd, tok, ap.neededArgument, ap.parseContext, scope)
+          .toPartial(PartialReporterApp.apply _)
 
         (newPartial :: ap :: rest, ctx.copy(precedence = ap.precedence))
       // Cmd -> CmdArgs
@@ -639,15 +554,13 @@ object ExpressionParser {
     newRepApp match {
       case f: FailedParse => PartialError(f)
       case SuccessfulParse(repApp) =>
-        resolveTypes(repApp.args, ArgumentParseContext(repApp.reporter, repApp.sourceLocation), scope) match {
-          case f: FailedParse => PartialError(f)
-          case SuccessfulParse(typedArgs) =>
-            val start = args.headOption
-              .map(_.sourceLocation.start min tok.start)
-              .getOrElse(tok.start)
-            val end = args.lastOption.map(_.sourceLocation.end).getOrElse(tok.end)
-            val loc = SourceLocation(start, end, tok.filename)
-            PartialReporterApp(repApp.copy(args = typedArgs, location = loc))
+        resolveTypes(repApp.args, ArgumentParseContext(repApp.reporter, repApp.sourceLocation), scope).toPartial { typedArgs =>
+          val start = args.headOption
+            .map(_.sourceLocation.start min tok.start)
+            .getOrElse(tok.start)
+          val end = args.lastOption.map(_.sourceLocation.end).getOrElse(tok.end)
+          val loc = SourceLocation(start, end, tok.filename)
+          PartialReporterApp(repApp.copy(args = typedArgs, location = loc))
         }
     }
   }
@@ -708,10 +621,7 @@ object ExpressionParser {
           case (other: core.Expression) =>
             PartialError(fail(ExpectedReporter, other))
         }
-    } match {
-      case f: FailedParse => PartialError(f)
-      case SuccessfulParse(partial) => partial
-    }
+    }.toPartial(identity)
   }
 
   def processReporterLambda(block: ArrowLambdaBlock, scope: SymbolTable): Partial = {
@@ -726,10 +636,7 @@ object ExpressionParser {
           case (other: core.Expression) =>
             PartialError(fail(ExpectedCommand, other))
         }
-    } match {
-      case f: FailedParse => PartialError(f)
-      case SuccessfulParse(partial) => partial
-    }
+    }.toPartial(identity)
   }
 
   def processCommandBlock(block: DelayedBlock, scope: SymbolTable): Partial = {
@@ -743,10 +650,7 @@ object ExpressionParser {
         case (stmts, remainingGroups) if remainingGroups.isEmpty =>
           SuccessfulParse(PartialCommandBlock(commandBlockWithStatements(block.group.location, stmts.stmts)))
         case (_, remainingGroups) => fail(ExpectedCommand, remainingGroups.head.start)
-      } match {
-        case f: FailedParse => PartialError(f)
-        case SuccessfulParse(partial) => partial
-      }
+      }.toPartial(identity)
   }
 
   private def processCodeBlock(block: DelayedBlock): Partial = {
@@ -769,10 +673,7 @@ object ExpressionParser {
         val ra = new core.ReporterApp(lambda, Seq(blockArg), block.group.location)
         SuccessfulParse(PartialReporterApp(ra))
       case (stmts, remainingGroups) => fail(ExpectedCommand, remainingGroups.head.start)
-    } match {
-      case f: FailedParse => PartialError(f)
-      case SuccessfulParse(partial) => partial
-    }
+    }.toPartial(identity)
   }
 
   // TODO: this is an innefficient and inelegant solution which transforms a higher-information
