@@ -10,8 +10,7 @@ import org.nlogo.api.Vect;
 public final strictfp class Observer3D
     extends Observer
     implements Agent3D {
-
-  public Observer3D(World3D world) {
+  public Observer3D(World world) {
     super(world);
   }
 
@@ -21,11 +20,11 @@ public final strictfp class Observer3D
   @Override
   public void home() {
     super.home();
-    World3D w = (World3D) world;
+    World3D w = (World3D) world();
     double zOff = w.minPzcor() + ((w.maxPzcor() - w.minPzcor()) / 2.0);
     ozcor(zOff + (StrictMath.max
-        (world.worldWidth(),
-         StrictMath.max(world.worldHeight(), w.worldDepth())) * 2));
+        (world().worldWidth(),
+         StrictMath.max(world().worldHeight(), w.worldDepth())) * 2));
 
     setRotationPoint(new Vect(oxcor(), oycor(), zOff));
     right = new Vect(1, 0, 0);
@@ -36,9 +35,9 @@ public final strictfp class Observer3D
   public boolean updatePosition() {
     boolean changed = false;
 
-    if (perspective.kind() == PerspectiveJ.OBSERVE) {
+    if (perspective().kind() == PerspectiveJ.OBSERVE) {
       return false;
-    } else if (perspective.kind() == PerspectiveJ.WATCH) {
+    } else if (perspective().kind() == PerspectiveJ.WATCH) {
       if (targetAgent() == null || targetAgent().id() == -1) {
         resetPerspective();
         return true;
@@ -94,8 +93,8 @@ public final strictfp class Observer3D
   }
 
   public double followOffsetZ() {
-    if (perspective instanceof AgentFollowingPerspective) {
-      World3D w = (World3D) world;
+    if (perspective() instanceof AgentFollowingPerspective) {
+      World3D w = (World3D) world();
       return ozcor() - ((w.minPzcor() + w.maxPzcor()) / 2.0);
     }
 
@@ -104,18 +103,18 @@ public final strictfp class Observer3D
 
   public void face(double x, double y, double z) {
     try {
-      heading(world.protractor().towards(this, x, y, false));
+      heading(world().protractor().towards(this, x, y, false));
     } catch (AgentException ex) {
       heading(0.0);
     }
     try {
-      pitch(-world.protractor().towardsPitch(this, x, y, z, false));
+      pitch(-world().protractor().towardsPitch(this, x, y, z, false));
     } catch (AgentException ex) {
       pitch(0.0);
     }
 
     setRotationPoint(x, y, z);
-    Vect[] v = Vect.toVectors(orientation.heading, orientation.pitch, orientation.roll);
+    Vect[] v = Vect.toVectors(_orientation().heading(), _orientation().pitch(), _orientation().roll());
     forward = v[0];
     right = v[1];
   }
@@ -134,7 +133,7 @@ public final strictfp class Observer3D
 
   public Patch3D getPatchAtOffsets(double dx, double dy, double dz)
       throws AgentException {
-    return ((World3D) world).getPatchAt(dx, dy, dz);
+    return ((World3D) world()).getPatchAt(dx, dy, dz);
   }
 
   @Override
@@ -203,9 +202,9 @@ public final strictfp class Observer3D
     // can be made around the x-axis.
     pos = pos.rotateZ(angle).rotateX(-delta).rotateZ(-angle);
 
-    pitch(orientation.pitch + delta);
+    pitch(_orientation().pitch() + delta);
 
-    Vect[] v = Vect.toVectors(orientation.heading, orientation.pitch, orientation.roll);
+    Vect[] v = Vect.toVectors(_orientation().heading(), _orientation().pitch(), _orientation().roll());
 
     forward = v[0];
     right = v[1];
@@ -217,7 +216,7 @@ public final strictfp class Observer3D
 
   @Override
   public void translate(double thetaX, double thetaY) {
-    Vect[] v = Vect.toVectors(orientation.heading, orientation.pitch, orientation.roll);
+    Vect[] v = Vect.toVectors(_orientation().heading(), _orientation().pitch(), _orientation().roll());
     Vect ortho = v[1].cross(v[0]);
 
     oxcor(oxcor() - v[1].x() * thetaX * 0.1);

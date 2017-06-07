@@ -19,6 +19,7 @@ import org.nlogo.core.TokenType;
 import org.nlogo.core.UpdateMode;
 import org.nlogo.core.UpdateModeJ;
 import org.nlogo.agent.Importer;
+import org.nlogo.agent.ImporterJ;
 import org.nlogo.nvm.Activation;
 import org.nlogo.nvm.Command;
 import org.nlogo.nvm.EditorWorkspace;
@@ -226,7 +227,7 @@ public abstract strictfp class AbstractWorkspace
 
   public abstract void clearAll();
 
-  protected abstract org.nlogo.agent.Importer.ErrorHandler importerErrorHandler();
+  protected abstract org.nlogo.agent.ImporterJ.ErrorHandler importerErrorHandler();
 
   public void importWorld(String filename)
       throws java.io.IOException {
@@ -255,8 +256,8 @@ public abstract strictfp class AbstractWorkspace
             stringReader(), new java.io.BufferedReader(reader));
   }
 
-  private final Importer.StringReader stringReader() {
-    return new Importer.StringReader() {
+  private final ImporterJ.StringReader stringReader() {
+    return new ImporterJ.StringReader() {
       public Object readFromString(String s)
           throws Importer.StringReaderException {
         try {

@@ -37,12 +37,12 @@ public final strictfp class Patch3D
 
   public static final int LAST_PREDEFINED_VAR_3D = 5;
 
-  Patch3D(World3D world, int id, int pxcor, int pycor, int pzcor, int numVariables) {
+  Patch3D(World world, int id, int pxcor, int pycor, int pzcor, int numVariables) {
     super(world, pxcor, pycor);
-    this.id = id;
+    this._id_$eq(id);
     this.pzcor = pzcor;
 
-    variables = new Object[numVariables];
+    Object[] variables = new Object[numVariables];
 
     for (int i = 0; i < numVariables; i++) {
       switch (i) {
@@ -68,13 +68,14 @@ public final strictfp class Patch3D
     }
 
     NUMBER_PREDEFINED_VARS = LAST_PREDEFINED_VAR_3D + 1;
+    _variables_$eq(variables);
   }
 
   @Override
   public void setPatchVariable(int vn, Object value)
       throws AgentException {
     if (vn > LAST_PREDEFINED_VAR_3D) {
-      variables[vn] = value;
+      variables()[vn] = value;
     } else {
       switch (vn) {
         case VAR_PCOLOR3D:
@@ -133,10 +134,10 @@ public final strictfp class Patch3D
   @Override
   public Object getPatchVariable(int vn) {
     if (vn == VAR_PCOLOR3D &&
-        variables[VAR_PCOLOR3D] == null) {
-      variables[VAR_PCOLOR3D] = Double.valueOf(pcolor);
+        variables()[VAR_PCOLOR3D] == null) {
+      variables()[VAR_PCOLOR3D] = Double.valueOf(pcolor);
     }
-    return variables[vn];
+    return variables()[vn];
   }
 
   @Override
@@ -157,7 +158,7 @@ public final strictfp class Patch3D
   @Override
   public Patch getPatchAtOffsets(double dx, double dy)
       throws AgentException {
-    Patch target = ((World3D) world).getPatchAt(pxcor + dx, pycor + dy, pzcor);
+    Patch target = ((World3D) world()).getPatchAt(pxcor + dx, pycor + dy, pzcor);
     if (target == null) {
       throw new AgentException("Cannot get patch beyond limits of current world.");
     }
@@ -166,7 +167,7 @@ public final strictfp class Patch3D
 
   public Patch3D getPatchAtOffsets(double dx, double dy, double dz)
       throws AgentException {
-    Patch3D target = ((World3D) world).getPatchAt(pxcor + dx, pycor + dy, pzcor + dz);
+    Patch3D target = ((World3D) world()).getPatchAt(pxcor + dx, pycor + dy, pzcor + dz);
     if (target == null) {
       throw new AgentException("Cannot get patch beyond limits of current world.");
     }
@@ -183,15 +184,28 @@ public final strictfp class Patch3D
 
   @Override
   public Patch fastGetPatchAt(int x, int y) {
-    return ((World3D) world).fastGetPatchAt(x, y, pzcor);
+    return ((World3D) world()).fastGetPatchAt(x, y, pzcor);
+  }
+
+  @Override
+  public Turtle sprout(int c, int heading, AgentSet breed) {
+    Turtle child = new Turtle3D((World3D) world(), breed,
+        (Double) variables()[VAR_PXCOR3D],
+        (Double) variables()[VAR_PYCOR3D],
+        (Double) variables()[VAR_PZCOR3D]);
+    child.colorDouble
+        (Double.valueOf
+            (5 + 10 * c));
+    child.heading(heading);
+    return child;
   }
 
   @Override
   public Object pcolor() {
-    if (variables[VAR_PCOLOR3D] == null) {
-      variables[VAR_PCOLOR3D] = Double.valueOf(pcolor);
+    if (variables()[VAR_PCOLOR3D] == null) {
+      variables()[VAR_PCOLOR3D] = Double.valueOf(pcolor);
     }
-    return variables[VAR_PCOLOR3D];
+    return variables()[VAR_PCOLOR3D];
   }
 
   @Override
@@ -201,11 +215,11 @@ public final strictfp class Patch3D
     }
     if (this.pcolor != pcolor) {
       this.pcolor = pcolor;
-      variables[VAR_PCOLOR3D] = null;
-      world.patchColors()[(int) id] = Color.getARGBbyPremodulatedColorNumber(pcolor);
-      world.patchColorsDirty(true);
+      variables()[VAR_PCOLOR3D] = null;
+      world().patchColors()[(int) id()] = Color.getARGBbyPremodulatedColorNumber(pcolor);
+      world().markPatchColorsDirty();
       if (pcolor != 0.0) {
-        world.patchesAllBlack(false);
+        world().patchesAllBlack(false);
       }
     }
   }
@@ -217,20 +231,20 @@ public final strictfp class Patch3D
       color = Color.modulateDouble(color);
       if (pcolor != color) {
         pcolor = color;
-        variables[VAR_PCOLOR3D] = null;
-        world.patchColors()[(int) id] = Color.getARGBbyPremodulatedColorNumber(pcolor);
-        world.patchColorsDirty(true);
+        variables()[VAR_PCOLOR3D] = null;
+        world().patchColors()[(int) id()] = Color.getARGBbyPremodulatedColorNumber(pcolor);
+        world().markPatchColorsDirty();
         if (pcolor != 0.0) {
-          world.patchesAllBlack(false);
+          world().patchesAllBlack(false);
         }
       }
     } else if (pcolor != color) {
       pcolor = color;
-      variables[VAR_PCOLOR3D] = boxedColor;
-      world.patchColors()[(int) id] = Color.getARGBbyPremodulatedColorNumber(pcolor);
-      world.patchColorsDirty(true);
+      variables()[VAR_PCOLOR3D] = boxedColor;
+      world().patchColors()[(int) id()] = Color.getARGBbyPremodulatedColorNumber(pcolor);
+      world().markPatchColorsDirty();
       if (pcolor != 0.0) {
-        world.patchesAllBlack(false);
+        world().patchesAllBlack(false);
       }
     }
   }
@@ -246,23 +260,23 @@ public final strictfp class Patch3D
     double color = boxedColor.doubleValue();
     if (color != pcolor) {
       pcolor = color;
-      variables[VAR_PCOLOR3D] = boxedColor;
-      world.patchColors()[(int) id] = Color.getARGBbyPremodulatedColorNumber(color);
-      world.patchColorsDirty(true);
+      variables()[VAR_PCOLOR3D] = boxedColor;
+      world().patchColors()[(int) id()] = Color.getARGBbyPremodulatedColorNumber(color);
+      world().markPatchColorsDirty();
       if (color != 0.0) {
-        world.patchesAllBlack(false);
+        world().patchesAllBlack(false);
       }
     }
   }
 
   @Override
   public Object label() {
-    return variables[VAR_PLABEL3D];
+    return variables()[VAR_PLABEL3D];
   }
 
   @Override
   public String labelString() {
-    return Dump.logoObject(variables[VAR_PLABEL3D]);
+    return Dump.logoObject(variables()[VAR_PLABEL3D]);
   }
 
   @Override
@@ -270,42 +284,42 @@ public final strictfp class Patch3D
     if (label instanceof String &&
         ((String) label).length() == 0) {
       if (hasLabel()) {
-        world.addPatchLabel();
+        world().removePatchLabel();
       }
     } else {
       if (!hasLabel()) {
-        world.removePatchLabel();
+        world().addPatchLabel();
       }
     }
-    variables[VAR_PLABEL3D] = label;
+    variables()[VAR_PLABEL3D] = label;
   }
 
   @Override
   public Object labelColor() {
-    return variables[VAR_PLABELCOLOR3D];
+    return variables()[VAR_PLABELCOLOR3D];
   }
 
   @Override
   public void labelColor(double labelColor) {
-    variables[VAR_PLABELCOLOR3D] = Double.valueOf(Color.modulateDouble(labelColor));
+    variables()[VAR_PLABELCOLOR3D] = Double.valueOf(Color.modulateDouble(labelColor));
   }
 
   @Override
   public void labelColor(Double labelColor) {
-    variables[VAR_PLABELCOLOR3D] = labelColor;
+    variables()[VAR_PLABELCOLOR3D] = labelColor;
   }
 
   @Override
   public IndexedAgentSet getNeighbors() {
     if (patchNeighbors == null) {
-      patchNeighbors = ((Topology3D) world.getTopology()).getNeighbors3d(this);
+      patchNeighbors = ((Topology3D) world().topology()).getNeighbors3d(this);
     }
     return patchNeighbors;
   }
 
   public AgentSet getNeighbors6() {
     if (patchNeighbors6 == null) {
-      patchNeighbors6 = ((Topology3D) world.getTopology()).getNeighbors6(this);
+      patchNeighbors6 = ((Topology3D) world().topology()).getNeighbors6(this);
     }
     return patchNeighbors6;
   }

@@ -3,6 +3,7 @@
 package org.nlogo.agent
 
 import org.nlogo.core
+import org.nlogo.core.Program
 import collection.JavaConverters._
 
 // this exists to support recompiling a model without causing agent state information to be lost.
@@ -10,7 +11,7 @@ import collection.JavaConverters._
 
 object Realloc {
 
-  def realloc(world: World) {
+  def realloc(world: World, oldProgram: Program, newProgram: Program) {
     import world.program
     // remove agentsets for breeds that no longer exist, if any
     for(name <- world.breedAgents.keySet.asScala.toList)
@@ -44,7 +45,7 @@ object Realloc {
         if (breedGone)
           doomedAgents += agt
         else
-          agt.realloc(true)
+          agt.realloc(oldProgram, newProgram)
       }
       doomedAgents.foreach(_.die())
     }
@@ -61,20 +62,20 @@ object Realloc {
         if (breedGone)
           doomedAgents += agt
         else
-          agt.realloc(true)
+          agt.realloc(oldProgram, newProgram)
       }
       doomedAgents.foreach(_.die())
     }
     // call Agent.realloc() on all the patches
     // Note: we only need to realloc() if the patch variables have changed.
     //  ~Forrest ( 5/2/2007)
-    if (world.patches != null && program.patchesOwn != world.oldProgram.patchesOwn) {
+    if (world.patches != null && program.patchesOwn != oldProgram.patchesOwn) {
       val iter = world.patches.iterator
       while(iter.hasNext)
-        iter.next().realloc(true)
+        iter.next().realloc(oldProgram, newProgram)
     }
     // call Agent.realloc() on the observer
-    world.observer.realloc(true)
+    world.observer.realloc(oldProgram, newProgram)
     // and finally...
     world.turtleBreedShapes.setUpBreedShapes(false, program.breeds)
     world.linkBreedShapes.setUpBreedShapes(false, program.linkBreeds)

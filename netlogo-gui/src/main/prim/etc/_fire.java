@@ -76,26 +76,26 @@ public final strictfp class _fire
       if (patch.pcolorDouble() == GREEN) {
         // set counts (nsum4 fire)
         double counts =
-            ((Double) patch.getPatchNorth().variables[FIRE_VAR]).doubleValue() +
-                ((Double) patch.getPatchSouth().variables[FIRE_VAR]).doubleValue() +
-                ((Double) patch.getPatchEast().variables[FIRE_VAR]).doubleValue() +
-                ((Double) patch.getPatchWest().variables[FIRE_VAR]).doubleValue();
-        patch.variables[COUNTS_VAR] = Double.valueOf(counts);
+            ((Double) patch.getPatchNorth().variables()[FIRE_VAR]).doubleValue() +
+                ((Double) patch.getPatchSouth().variables()[FIRE_VAR]).doubleValue() +
+                ((Double) patch.getPatchEast().variables()[FIRE_VAR]).doubleValue() +
+                ((Double) patch.getPatchWest().variables()[FIRE_VAR]).doubleValue();
+        patch.variables()[COUNTS_VAR] = Double.valueOf(counts);
       }
     }
     for (int i = 0; i < patchCount; i++) {
       Patch patch = world.getPatch(i);
       double pcolor = patch.pcolorDouble();
       if (pcolor == GREEN) {
-        if (((Double) patch.variables[COUNTS_VAR]).doubleValue() > 0) {
+        if (((Double) patch.variables()[COUNTS_VAR]).doubleValue() > 0) {
           // set fire 1
-          patch.variables[FIRE_VAR] = World.One();
+          patch.variables()[FIRE_VAR] = World.One();
           // set pcolor red
           patch.pcolorDoubleUnchecked(BOXED_RED);
           // set burned-trees burned-trees + 1
-          world.observer().variables[BURNED_TREES_VAR] =
+          world.observer().variables()[BURNED_TREES_VAR] =
               Double.valueOf
-                  (((Double) world.observer().variables
+                  (((Double) world.observer().variables()
                       [world.program().interfaceGlobals().size()])
                       .doubleValue() + 1);
         }

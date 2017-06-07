@@ -36,33 +36,33 @@ public final strictfp class _life
   public void perform(final org.nlogo.nvm.Context context) {
     int patchCount = world.patches().count();
     double fgcolor =
-        ((Double) world.observer().variables
+        ((Double) world.observer().variables()
             [world.program().globals().indexOf("FGCOLOR")])
             .doubleValue();
     double bgcolor =
-        ((Double) world.observer().variables
+        ((Double) world.observer().variables()
             [world.program().globals().indexOf("BGCOLOR")])
             .doubleValue();
     for (int i = 0; i < patchCount; i++) {
       Patch patch = world.getPatch(i);
       int liveNeighbors = 0;
       for (AgentIterator iter = patch.getNeighbors().iterator(); iter.hasNext();) {
-        if (((Boolean) (((Patch) iter.next()).variables[LIVING_VAR]))
+        if (((Boolean) (((Patch) iter.next()).variables()[LIVING_VAR]))
             .booleanValue()) {
           liveNeighbors++;
         }
       }
-      patch.variables[LIVE_NEIGHBORS_VAR] = Double.valueOf(liveNeighbors);
+      patch.variables()[LIVE_NEIGHBORS_VAR] = Double.valueOf(liveNeighbors);
     }
     for (int i = 0; i < patchCount; i++) {
       Patch patch = world.getPatch(i);
       int liveNeighbors =
-          ((Double) patch.variables[LIVE_NEIGHBORS_VAR]).intValue();
+          ((Double) patch.variables()[LIVE_NEIGHBORS_VAR]).intValue();
       if (liveNeighbors == 3) {
-        patch.variables[LIVING_VAR] = Boolean.TRUE;
+        patch.variables()[LIVING_VAR] = Boolean.TRUE;
         patch.pcolor(fgcolor);
       } else if (liveNeighbors != 2) {
-        patch.variables[LIVING_VAR] = Boolean.FALSE;
+        patch.variables()[LIVING_VAR] = Boolean.FALSE;
         patch.pcolor(bgcolor);
       }
     }

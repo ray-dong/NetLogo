@@ -127,7 +127,7 @@ private[agent] class Exporter3D(world: World3D, writer: PrintWriter) extends Exp
     // we want to make sure to export the globals in alphabetical order so that the world files are
     // exactly the same everytime which is important for checksums in particular.  ev 6/15/05
     Collections.sort(sortedGlobals)
-    val subject = Option(world.observer.targetAgent()).getOrElse(Nobody)
+    val subject = Option(world.observer.targetAgent).getOrElse(Nobody)
     print("," + csv.variableNameRow(sortedGlobals))
     println()
     print(csv.encode(Integer.toString(world.minPxcor)) + ","
@@ -136,7 +136,7 @@ private[agent] class Exporter3D(world: World3D, writer: PrintWriter) extends Exp
                   + csv.encode(Integer.toString(world.maxPycor)) + ","
                   + csv.encode(Integer.toString(world.minPzcor)) + ","
                   + csv.encode(Integer.toString(world.maxPzcor)) + ","
-                  + csv.encode(Integer.toString(world.observer.perspective().export)) + ","
+                  + csv.encode(Integer.toString(world.observer.perspective.export)) + ","
                   + csv.data(subject) + ","
                   + csv.encode(JLong.toString(world.nextTurtleIndex)) + ","
                   + csv.data(if(world.links.isDirected) "DIRECTED" else
@@ -145,7 +145,7 @@ private[agent] class Exporter3D(world: World3D, writer: PrintWriter) extends Exp
     for((g, i) <- globals.zipWithIndex) {
       print(",")
       print(csv.data
-                   (world.observer.getObserverVariable
+                   (world.observer.getVariable
                     (globalVarIndices.get(sortedGlobals.get(i)).intValue())
                   ))
     }

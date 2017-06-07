@@ -2,6 +2,8 @@
 
 package org.nlogo.agent;
 
+import org.nlogo.core.AgentKind;
+import org.nlogo.core.AgentKindJ;
 import org.nlogo.api.AgentVariables;
 import org.nlogo.api.ImporterUser;
 import org.nlogo.api.WorldDimensions3D;
@@ -13,10 +15,20 @@ public strictfp class Importer3D
   static final String MIN_PZCOR_HEADER = "MIN-PZCOR";
   static final String MAX_PZCOR_HEADER = "MAX-PZCOR";
 
-  public Importer3D(org.nlogo.agent.Importer.ErrorHandler errorHandler, World3D world, ImporterUser importerUser,
-                    org.nlogo.agent.Importer.StringReader stringReader) {
+  public Importer3D(org.nlogo.agent.ImporterJ.ErrorHandler errorHandler, World world, ImporterUser importerUser,
+                    org.nlogo.agent.ImporterJ.StringReader stringReader) {
     super(errorHandler, world, importerUser, stringReader);
     TURTLE_BREED = Turtle3D.VAR_BREED3D;
+  }
+
+  @Override
+  public String[] getImplicitVariables(AgentKind kind) {
+    if (kind == AgentKindJ.Turtle())
+      return AgentVariables.getImplicitTurtleVariables(true);
+    else if (kind == AgentKindJ.Patch())
+      return AgentVariables.getImplicitPatchVariables(true);
+    else
+      return super.getImplicitVariables(kind);
   }
 
   @Override
@@ -201,7 +213,7 @@ public strictfp class Importer3D
   }
 
   @Override
-  String[] getSpecialObserverVariables() {
+  public String[] getSpecialObserverVariables() {
     return new String[]{MIN_PXCOR_HEADER,
         MAX_PXCOR_HEADER,
         MIN_PYCOR_HEADER,
@@ -216,7 +228,7 @@ public strictfp class Importer3D
   }
 
   @Override
-  String[] getSpecialTurtleVariables() {
+  public String[] getSpecialTurtleVariables() {
     String[] vars = AgentVariables.getImplicitTurtleVariables(true);
     return new String[]
         {vars[Turtle.VAR_WHO], vars[Turtle3D.VAR_BREED3D],
@@ -224,7 +236,7 @@ public strictfp class Importer3D
   }
 
   @Override
-  String[] getSpecialPatchVariables() {
+  public String[] getSpecialPatchVariables() {
     String[] vars = AgentVariables.getImplicitPatchVariables(true);
     return new String[]
         {vars[Patch3D.VAR_PXCOR3D], vars[Patch3D.VAR_PYCOR3D],

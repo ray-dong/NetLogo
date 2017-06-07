@@ -68,11 +68,11 @@ the same values, as well as a dead turtle and a Nobody. - JMD 10/28/03*/
     // so that's what makes these cases work.  - ST 10/28/03, 11/20/12 */
     else if (sourceObject instanceof Link) {
       return Long.valueOf
-          (((Link) sourceObject).id).hashCode();
+          (((Link) sourceObject).id()).hashCode();
     }
     else if (sourceObject instanceof Turtle) {
       return Long.valueOf
-          (((Turtle) sourceObject).id).hashCode();
+          (((Turtle) sourceObject).id()).hashCode();
     } else if (sourceObject == Nobody$.MODULE$) {
       return NOBODY_CODE;
     } else if (sourceObject instanceof LogoList) {
